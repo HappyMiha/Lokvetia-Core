@@ -6,7 +6,7 @@
 <details>
 <summary>Translation source and currency</summary>
 
-Translation source: [game-creator-backlog.uk.md](game-creator-backlog.uk.md). Source SHA-256 (UTF-8/LF): `e8da3c8ed882e597f921c6be99ed59673ce3cef674b499a60d4128787aa49b7f`.
+Translation source: [game-creator-backlog.uk.md](game-creator-backlog.uk.md). Source SHA-256 (UTF-8/LF): `45502fb8ace32dd907938f0bd132153e20a123f5942bdba5a3f06f1189f9f74d`.
 
 Currency checks: [Core](https://github.com/HappyMiha/Lokvetia-Core/actions/workflows/planning.yml?query=branch%3Amain) · [Lokiravia](https://github.com/HappyMiha/Lokiravia/actions/workflows/planning.yml?query=branch%3Amain). English is a documentation translation; canonical requirements and evidence statuses are unchanged.
 
@@ -16,6 +16,14 @@ Currency checks: [Core](https://github.com/HappyMiha/Lokvetia-Core/actions/workf
 Українська: [original](game-creator-backlog.uk.md).
 
 Date: **5 September 2026**. This is the active product plan; the [current-state audit](product-audit-2026-09-05.md) explains its rationale. The machine-readable source is [game-creator-backlog.json](../examples/game-creator-backlog.json), schema v2. All new tasks are **proposed**; none is declared implemented.
+
+<a id="наступний-напрям-режим-ai-студія"></a>
+## Next direction: the "AI studio" mode
+
+The ["AI studio"](ai-studio.en.md) statement is accepted as the direction of this
+same plan. Its epics and tasks live in the same manifest with the `AF-ST` prefix,
+milestone `m4`, and are accepted by task `AF-ST-010`. They cancel no `AF-GC` task:
+they remove the manual gates from work those tasks have already proved.
 
 <a id="мета-й-межі"></a>
 ## Goal and boundaries

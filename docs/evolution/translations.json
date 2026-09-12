@@ -157,10 +157,16 @@
       "translation_sha256": "90c217936fb79ef7d0c454ee875d80fc8148cc21b4d4cad4db7fe0571f550dc3"
     },
     {
+      "source": "docs/ai-studio.uk.md",
+      "translation": "docs/ai-studio.en.md",
+      "source_sha256": "7241ef02b5dca03e0cc0289643ebba30f37eac381c400bff39aa31e7a03e2c03",
+      "translation_sha256": "d0604b815d1cd70dce4594d79e5bd4dbb8ac787d26cd0b1726749e5db5abed33"
+    },
+    {
       "source": "docs/game-creator-backlog.uk.md",
       "translation": "docs/game-creator-backlog.en.md",
-      "source_sha256": "e8da3c8ed882e597f921c6be99ed59673ce3cef674b499a60d4128787aa49b7f",
-      "translation_sha256": "b231a9d7f784e25ef6d8b073d8cb17b15b8cfe5fb42cac7f187a255f6b35bf80"
+      "source_sha256": "45502fb8ace32dd907938f0bd132153e20a123f5942bdba5a3f06f1189f9f74d",
+      "translation_sha256": "ebe94967cbd631dae8904ecaea77a68903bb349873c3b23f6bfe818e9de6326c"
     }
   ],
   "canonical_sources": [
@@ -190,7 +196,7 @@
     },
     {
       "path": "examples/game-creator-backlog.json",
-      "sha256": "7e61adf6a2802c2bc3cc5b04307461e79757f5bdfab1c49417f39c4019b07c3f"
+      "sha256": "174ee8755297807711de595df04533b26d37d0098cfeac3c552ca8d3ed5fac97"
     }
   ]
 }

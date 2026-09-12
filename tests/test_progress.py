@@ -343,7 +343,7 @@ if __name__ == "__main__":
 
 
 class PortfolioReportingTests(unittest.TestCase):
-    def test_core_default_covers_all_183_executable_cards(self):
+    def test_core_default_covers_all_198_executable_cards(self):
         import importlib.util
         root = Path(__file__).resolve().parents[1]
         spec = importlib.util.spec_from_file_location("progress_controller_test", root / "scripts/autodeploy.py")
@@ -353,8 +353,10 @@ class PortfolioReportingTests(unittest.TestCase):
         manifests = [(p, *read_manifest_file(root / p)) for p in paths]
         result = project(*manifests)
         self.assertEqual(result.warnings, ())
-        self.assertEqual(len(result.tasks), 183)
-        self.assertEqual(len({t.stable_id for t in result.tasks}), 183)
+        # The count is pinned so a manifest cannot quietly lose or duplicate a
+        # card. It moved from 183 to 198 when the AI-studio epics were planned.
+        self.assertEqual(len(result.tasks), 198)
+        self.assertEqual(len({t.stable_id for t in result.tasks}), 198)
 
     def test_cross_product_dependency_requires_acceptance(self):
         design = {"portfolio_schema_version": 1, "artifact_kind": "design_backlog",
