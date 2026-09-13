@@ -167,6 +167,18 @@
       "translation": "docs/game-creator-backlog.en.md",
       "source_sha256": "45502fb8ace32dd907938f0bd132153e20a123f5942bdba5a3f06f1189f9f74d",
       "translation_sha256": "ebe94967cbd631dae8904ecaea77a68903bb349873c3b23f6bfe818e9de6326c"
+    },
+    {
+      "source": "docs/ai-studio-audit.uk.md",
+      "translation": "docs/ai-studio-audit.en.md",
+      "source_sha256": "35381a33e1a76bf795eb3d743a8ae8920c59670676a82041dccdf8ffc23e11e2",
+      "translation_sha256": "8a6e32485215bf5bc5c896e271c2da5894ed378b29eb269a1f708c65e79a8167"
+    },
+    {
+      "source": "docs/desktop-installation.uk.md",
+      "translation": "docs/desktop-installation.en.md",
+      "source_sha256": "c99c0185aebe7058f018f4d236b4fd4b07190f54352bb99c62b784adc8777963",
+      "translation_sha256": "5131cf5cbdbfae72b3c411f3809426b2166ea015d69300eb55210a905fa9ce62"
     }
   ],
   "canonical_sources": [

@@ -194,6 +194,22 @@ class LocalHTTPBoundary:
         request.state.local_policy = policy
         request.state.local_principal = principal
         path = scope["path"]
+        # Self-registration grants a profile and downloads, not access to the
+        # operator's shared workspace. Enforce this before every route, including
+        # legacy endpoints which predate per-tenant authorization.
+        if principal is not None and principal.role == 'account_user':
+            allowed = (path in {'/api/account', '/profile', '/organizations', '/login', '/register',
+                                '/downloads', '/downloads/manifest.json', '/auth/session'}
+                       or path.startswith('/auth/account') or path.startswith('/auth/sso/')
+                       or path.startswith('/downloads/files/') or path.startswith('/assets/')
+                       or path == '/authorize' or path.startswith('/backchannel/'))
+            if path == '/':
+                from starlette.responses import RedirectResponse
+                await RedirectResponse('/downloads', status_code=303)(scope, receive, protected_send)
+                return
+            if not allowed:
+                await deny(403, 'personal_account_only')
+                return
         if path == "/api" or path.startswith("/api/"):
             if principal is None:
                 await deny(401, "authentication_required")

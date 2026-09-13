@@ -10,7 +10,7 @@ from .email_auth import email_address
 from .http_auth import COOKIE, Principal
 
 
-def install_routes(app, access, *, product='Lokvetia Core'):
+def install_routes(app, access, *, product='Lokvetia Core', personal_registration=False):
     page = Path(__file__).parent / 'static' / 'account.html'
 
     async def document(request):
@@ -31,7 +31,7 @@ def install_routes(app, access, *, product='Lokvetia Core'):
     @app.get('/auth/account/config', include_in_schema=False)
     async def configuration(request: Request):
         principal = request.state.local_principal
-        return dict(product=product, registration='invitation', authenticated=principal is not None,
+        return dict(product=product, registration='personal' if personal_registration else 'invitation', authenticated=principal is not None,
                     actor=principal.actor if principal else None,
                     can_invite=bool(principal and principal.role == 'operations_owner'))
 
@@ -46,7 +46,11 @@ def install_routes(app, access, *, product='Lokvetia Core'):
             data = await document(request)
             if set(data) != {'email', 'password', 'invitation'}:
                 raise ValueError('Invalid registration request')
-            await run_in_threadpool(access.accounts.register, data['email'], data['password'], data['invitation'])
+            if personal_registration and data['invitation'] == '':
+                await run_in_threadpool(access.accounts.register_personal, data['email'], data['password'],
+                                        peer=request.client.host if request.client else 'unknown')
+            else:
+                await run_in_threadpool(access.accounts.register, data['email'], data['password'], data['invitation'])
             return JSONResponse({'registered': True})
         except (ValueError, TypeError, KeyError) as error:
             return JSONResponse({'error': str(error)}, status_code=400)

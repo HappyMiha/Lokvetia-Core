@@ -25,6 +25,22 @@
       </nav>
     </section>
 
+    <section class="card" aria-labelledby="create-title">
+      <h2 id="create-title" data-i18n="studio.create.title">Почати нову гру</h2>
+      <p data-i18n="studio.create.scope">Локальна модель складе план. Автоматична розробка й збірка ще не підключені.</p>
+      <form id="create-form">
+        <label for="game-title" data-i18n="studio.create.name">Назва гри</label>
+        <input id="game-title" required maxlength="160">
+        <label for="game-idea" data-i18n="studio.create.idea">Опишіть гру</label>
+        <textarea id="game-idea" required maxlength="6000" rows="4"></textarea>
+        <p data-i18n="studio.create.consent">Кнопка запускає планування локально з нульовим лімітом платних запитів.</p>
+        <p id="create-readiness" role="status" aria-live="polite"></p>
+        <button id="create-game" type="submit" disabled aria-describedby="create-readiness" data-i18n="studio.create.start">Почати планування</button>
+        <a href="/settings/credentials" data-i18n="studio.create.setup">Підключення провайдерів</a>
+        <p id="create-result" role="status" aria-live="polite"></p>
+      </form>
+    </section>
+
     <form class="picker" id="picker-form" autocomplete="off">
       <label for="mission"><span data-i18n="studio.mission.label">Гра</span></label>
       <input id="mission" type="text" maxlength="120" value="cat-coins">
@@ -57,7 +73,7 @@
           <button type="button" id="run-grant" data-i18n="studio.run.grant">Доручити студії</button>
           <button type="button" id="run-revoke" data-i18n="studio.run.revoke" hidden>Відкликати доручення</button>
         </div>
-        <p class="result" id="run-result" role="status"></p>
+        <p class="result" id="run-result" role="status" aria-live="polite"></p>
       </form>
       <h3 data-i18n="studio.run.steps">Що вона вже зробила</h3>
       <ul class="comments" id="run-steps"></ul>

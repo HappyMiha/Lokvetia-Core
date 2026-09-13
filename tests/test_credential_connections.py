@@ -76,6 +76,9 @@ class ConnectionTests(unittest.TestCase):
         self.assertNotIn(self.ref,self.store.values)
 
     def test_disconnect_serializes_with_inflight_use_across_service_instances(self):
+        # Keep schema migration time outside the lock-synchronization deadline.
+        prepared = SQLiteStorage(self.root/'thread-core.db')
+        prepared.close()
         entered=threading.Event(); release=threading.Event(); disconnected=threading.Event(); errors=[]
         def execute():
             try:

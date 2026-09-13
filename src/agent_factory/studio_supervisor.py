@@ -35,6 +35,9 @@ itself. It asks the gates, checks the money, and calls whoever does the work.
 from __future__ import annotations
 
 import json
+import math
+import hashlib
+import sqlite3
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from typing import Any, Mapping, Protocol, Sequence, TYPE_CHECKING
@@ -80,6 +83,14 @@ HOURS_REQUIRED = Message(
     "Доручення закінчується. Термін має бути додатним.",
     "A mandate runs out. Its term has to be positive.",
 )
+INVALID_MONEY = Message("Ліміт і вартість мають бути скінченними невідʼємними числами.",
+                        "Limits and costs must be finite non-negative numbers.")
+WRONG_OWNER = Message("Доручення має належати власнику цієї гри.",
+                      "The mandate must belong to this game's owner.")
+WRONG_MISSION = Message("Доручення стосується іншої гри.", "The mandate belongs to a different game.")
+PAUSED = Message("Гру призупинено. Нові задачі не починаються.",
+                 "The game is paused. No new tasks will start.")
+NOT_RUNNING = Message("Місія не виконується: {state}.", "The mission is not running: {state}.")
 UNDER_WAY = Message(
     "Крок триває.", "The step is under way.",
 )
@@ -175,7 +186,8 @@ def _now() -> str:
 
 def _parse(stamp: str) -> datetime | None:
     try:
-        return datetime.fromisoformat(str(stamp))
+        value = datetime.fromisoformat(str(stamp))
+        return value if value.tzinfo is not None else None
     except (TypeError, ValueError):
         return None
 
@@ -205,7 +217,8 @@ class Mandate:
     def live(self, *, at: str = "") -> bool:
         if self.revoked_at:
             return False
-        return not _later(at or _now(), self.expires_at)
+        now, start, end = _parse(at or _now()), _parse(self.granted_at), _parse(self.expires_at)
+        return bool(now and start and end and start <= now < end)
 
     def covers(self, step: str) -> bool:
         return step in self.steps
@@ -279,6 +292,7 @@ class MissionState:
     phase: str
     disposition: str
     version: int
+    mission_key: str = ""
 
 
 @dataclass(frozen=True)
@@ -397,8 +411,10 @@ class Supervisor:
         for step in wanted:
             if step not in STEPS:
                 raise SupervisorRefused(UNKNOWN_STEP, step=step)
-        if float(hours) <= 0:
+        if not math.isfinite(float(hours)) or not 0 < float(hours) <= 8760:
             raise SupervisorRefused(HOURS_REQUIRED)
+        if ceiling is not None and (not math.isfinite(float(ceiling)) or float(ceiling) < 0):
+            raise SupervisorRefused(INVALID_MONEY)
         granted_at = at or _now()
         starts = _parse(granted_at) or datetime.now(timezone.utc)
         expires = (starts + timedelta(hours=float(hours))).isoformat(timespec="seconds")
@@ -558,7 +574,27 @@ class Supervisor:
 
     # -------------------------------------------------------------- driving
 
-    def advance(
+    def advance(self, mission: str, driver: MissionDriver, *,
+                next_step_cost: float = 0.0, at: str = "") -> Step:
+        """Serialize a mission across HTTP, CLI and separate worker processes.
+
+        Keep the execution lock separate from state.db so Pause can be recorded
+        while a model is answering. Only the lock holder may reconcile a crash.
+        """
+        from .local_games import local_games_lock
+        key = hashlib.sha256(str(mission).encode()).hexdigest()[:24]
+        try:
+            with local_games_lock(str(self.storage.path) + ".studio-" + key):
+                return self._advance(mission, driver, next_step_cost=next_step_cost, at=at)
+        except sqlite3.OperationalError as error:
+            if "locked" not in str(error).lower():
+                raise
+            running = self.in_flight(str(mission))
+            if running:
+                return running[-1]
+            raise
+
+    def _advance(
         self,
         mission: str,
         driver: MissionDriver,
@@ -576,12 +612,23 @@ class Supervisor:
         from .studio_autonomy import AutonomyJournal, decide, over_budget
         from .studio_cost import StudioCosts
         from .studio_first_run import FirstRun
+        from .studio_cycles import StudioCycles
+
+        if not math.isfinite(float(next_step_cost)) or float(next_step_cost) < 0:
+            raise SupervisorRefused(INVALID_MONEY)
 
         stamp = at or _now()
         mission = str(mission)
         interrupted = self.reconcile(mission, at=stamp)
         if interrupted:
             return interrupted[-1]
+        # A later poll must not silently retry the ambiguous work just reconciled.
+        unresolved = self.storage.db.execute(
+            "SELECT * FROM studio_supervisor_steps WHERE mission=? AND outcome='unknown' "
+            "ORDER BY id DESC LIMIT 1", (mission,),
+        ).fetchone()
+        if unresolved is not None:
+            return self._step_row(unresolved)
 
         mandate = self.mandate(mission, at=stamp)
         if mandate is None:
@@ -598,6 +645,18 @@ class Supervisor:
             return self._write(mission, "", "waiting", NO_SOURCE, mandate=mandate,
                                detail=readiness.summary, at=stamp)
 
+        state = driver.state()
+        if state.mission_key and state.mission_key != mission:
+            return self._write(mission, "", "refused", WRONG_MISSION, mandate=mandate, at=stamp)
+        if mandate.granted_by != state.owner:
+            return self._write(mission, "", "refused", WRONG_OWNER, mandate=mandate, at=stamp)
+        if StudioCycles(self.storage).paused(mission):
+            return self._write(mission, "", "waiting", PAUSED, mandate=mandate, at=stamp)
+        if state.disposition != "RUNNING":
+            return self._write(mission, "", "waiting", Message(
+                NOT_RUNNING.uk.format(state=state.disposition),
+                NOT_RUNNING.en.format(state=state.disposition)), mandate=mandate, at=stamp)
+
         journal = AutonomyJournal(self.storage)
         open_questions = journal.open_questions(mission=mission)
         if open_questions:
@@ -607,7 +666,6 @@ class Supervisor:
                         BLOCKED_BY_QUESTION.en.format(count=len(open_questions))),
                 mandate=mandate, at=stamp)
 
-        state = driver.state()
         step = next_step(state.phase)
         if not step:
             return self._write(
@@ -776,7 +834,7 @@ class CoreMissionDriver:
 
         mission = AutonomousMissionService(self.storage).get(self.mission_id)
         return MissionState(mission.id, mission.mission_owner, str(mission.phase),
-                            str(mission.disposition), mission.version)
+                            str(mission.disposition), mission.version, mission.mission_key)
 
     def plan(self, *, actor: str, command_id: str) -> Advanced:
         from .autonomous_authorization import AutonomousAuthorizationService

@@ -1,5 +1,8 @@
 .page-studio main { max-width: 68rem; margin: 0 auto; padding: 1.5rem 1rem 4rem; }
 .page-studio .intro { margin-bottom: 1.5rem; }
+.page-studio #create-form { display: grid; gap: .6rem; }
+.page-studio #create-form :is(input, textarea) { width: 100%; min-width: 0; box-sizing: border-box; }
+.page-studio #create-form a { display: inline-flex; align-items: center; min-height: 32px; }
 .page-studio .languages { display: flex; gap: .75rem; margin: .5rem 0 0; }
 .page-studio .languages a[aria-current="true"] { font-weight: 700; text-decoration: none; }
 .page-studio .picker { display: flex; flex-wrap: wrap; gap: .75rem; align-items: flex-end;

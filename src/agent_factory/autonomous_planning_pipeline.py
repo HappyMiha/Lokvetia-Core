@@ -114,6 +114,7 @@ class RuntimePlanningInvoker:
         self.runtime = runtime
 
     def invoke(self, request: PlanningInvocationRequest) -> ProviderResult:
+        from .planning_output_contracts import guidance
         assignment = request.assignment
         limits = dict(assignment.limits)
         agent = Agent(
@@ -128,6 +129,7 @@ class RuntimePlanningInvoker:
                 "Return one JSON object with exactly 'output' and 'evidence'. "
                 "Follow the role contract in the context. Do not use Markdown fences, "
                 "mutate the repository, or rely on prior conversation state."
+                + guidance(assignment.role_id)
             ),
         )
         task = WorkItem(
@@ -238,6 +240,30 @@ class PlanningArtifactSchemas:
         r"\b(?:returns?|rejects?|persists?|records?|equals?|contains?|completes?|"
         r"passes?|fails?|emits?|creates?|remains?|prevents?|requires?|within|"
         r"at\s+least|no\s+|only\s+)\b",
+        re.IGNORECASE,
+    )
+    GAME_MEASUREMENT = re.compile(
+        r"\b(?:moves?|collects?|rotates?|jumps?|travels?|scores?)\b.{0,100}"
+        r"\b\d+(?:\.\d+)?\s*(?:pixels?|frames?|coins?|points?|degrees?|meters?|metres?)\b",
+        re.IGNORECASE,
+    )
+    RUNTIME_CHECK = re.compile(
+        r"\b(?:loads?|runs?|starts?|launches?)\b.{0,80}\b(?:without (?:any )?errors?|exit code\s+0)\b",
+        re.IGNORECASE,
+    )
+    UI_ASSERTION = re.compile(
+        r"\b(?:displays?|shows?|hides?)\b.{0,60}\b(?:screens?|counters?|text|messages?|dialogs?|menus?|\d+(?:\.\d+)?)\b",
+        re.IGNORECASE,
+    )
+    ASSET_CONSTRAINT = re.compile(
+        r"\b(?:does\s+not|must\s+not|never)\s+(?:use|include)\b.{0,30}\b(?:paid|unlicensed)\s+assets?\b",
+        re.IGNORECASE,
+    )
+    STATE_CHANGE = re.compile(
+        r"\b(?:screens?|counters?|text|messages?|dialogs?|menus?)\b.{0,40}"
+        r"\b(?:displays?|appears?|disappears?|is visible|is hidden)\b|"
+        r"\b(?:position|score|counter|coordinates?)\b.{0,30}"
+        r"\b(?:increases?|decreases?|changes?|increments?|decrements?|resets?)\b",
         re.IGNORECASE,
     )
 
@@ -482,7 +508,12 @@ class PlanningArtifactSchemas:
     @classmethod
     def _measurable(cls, value: str, label: str) -> None:
         normalized = value.strip()
-        if len(normalized) < 12 or not cls.OBSERVABLE.search(normalized):
+        if len(normalized) < 12 or not (
+            cls.OBSERVABLE.search(normalized) or cls.GAME_MEASUREMENT.search(normalized)
+            or cls.RUNTIME_CHECK.search(normalized) or cls.UI_ASSERTION.search(normalized)
+            or cls.ASSET_CONSTRAINT.search(normalized)
+            or cls.STATE_CHANGE.search(normalized)
+        ):
             raise PlanningRoleOutputError(
                 f"{label} acceptance criterion is not deterministically measurable: "
                 f"{normalized!r}"

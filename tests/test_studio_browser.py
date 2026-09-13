@@ -8,6 +8,7 @@ the screen are compared with what the data supports.
 from __future__ import annotations
 
 import tempfile
+import json
 import threading
 import time
 import unittest
@@ -24,7 +25,7 @@ from agent_factory.studio_workers import StudioMachines
 from agent_factory.web import create_app
 
 try:
-    from playwright.sync_api import sync_playwright
+    from playwright.sync_api import sync_playwright, expect
 except ImportError:  # pragma: no cover - the suite skips without a browser
     sync_playwright = None
 
@@ -150,6 +151,53 @@ class StudioPageTests(unittest.TestCase):
         finally:
             page.close()
 
+    def test_create_explains_missing_qualification_and_stays_disabled(self):
+        page = self.open("/studio?lang=en")
+        try:
+            expect(page.locator("#create-game")).to_be_disabled()
+            expect(page.locator("#create-readiness")).to_contain_text("Qualify")
+        finally:
+            page.close()
+
+    def test_periodic_refresh_waits_for_an_existing_slow_load(self):
+        page = self.browser.new_page()
+        pending = []
+        page.clock.install()
+        page.route("**/api/studio/local-readiness?*", lambda route: pending.append(route))
+        try:
+            with page.expect_request("**/api/studio/local-readiness?*"):
+                page.goto(self.url + "/studio?lang=en", wait_until="domcontentloaded")
+            page.clock.run_for(11000)
+            self.assertEqual(len(pending), 1)
+            pending[0].fulfill(json={"can_start": False, "summary": "Waiting for qualification"})
+            expect(page.locator("#create-readiness")).to_contain_text("Waiting for qualification")
+        finally:
+            page.close()
+
+    def test_create_sends_one_confirmed_request_and_opens_its_mission(self):
+        page = self.browser.new_page()
+        sent = []
+        page.route("**/api/studio/local-readiness?*", lambda route: route.fulfill(
+            json={"can_start": True, "summary": "Qualified test source"}))
+        def create(route):
+            sent.append(json.loads(route.request.post_data))
+            route.fulfill(status=202, json={"mission_key": MISSION, "mission_id": 1})
+        page.route("**/api/studio/create?*", create)
+        try:
+            page.goto(self.url + "/studio?lang=en")
+            expect(page.locator("#create-game")).to_be_enabled()
+            page.fill("#game-title", "Coins")
+            page.fill("#game-idea", "A small coin game")
+            page.click("#create-game")
+            expect(page.locator("#create-result")).not_to_be_empty()
+            self.assertEqual(len(sent), 1)
+            self.assertTrue(sent[0]["confirmed"])
+            self.assertEqual(sent[0]["idea"], "A small coin game")
+            self.assertEqual(len(sent[0]["command_id"]), 36)
+            expect(page.locator("#mission")).to_have_value(MISSION)
+        finally:
+            page.close()
+
     def test_no_internal_code_reaches_the_screen(self):
         page = self.open("/studio?lang=en")
         try:
@@ -216,7 +264,7 @@ class StudioPageTests(unittest.TestCase):
             page.fill("#run-actor", "Miha")
             page.click("#run-grant")
             # The first click with a name explains what the studio will then do.
-            self.assertIn("signing every step with your name",
+            self.assertIn("permits planning in your name",
                           page.inner_text("#run-result"))
             self.assertIn("Nobody has asked", page.inner_text("#run-state"))
             page.click("#run-grant")
@@ -255,10 +303,10 @@ class StudioPageTests(unittest.TestCase):
             page.wait_for_timeout(400)
             page.fill("#actor", "miha")
             page.click("#pause")
-            page.wait_for_timeout(400)
+            expect(page.locator("#cycle-state")).to_contain_text("Paused")
             self.assertIn("Paused", page.inner_text("#cycle-state"))
             page.click("#resume")
-            page.wait_for_timeout(400)
+            expect(page.locator("#cycle-state")).to_contain_text("Running")
             self.assertIn("Running", page.inner_text("#cycle-state"))
             self.assertIn("Cycle 2", page.inner_text("#cycle-state"))
         finally:
@@ -289,7 +337,7 @@ class StudioPageTests(unittest.TestCase):
             artist = page.locator("#team li", has_text="Artist")
             artist.get_by_role("button", name="Turn on").click()
             artist.locator(".note").wait_for()
-            page.wait_for_timeout(200)
+            expect(artist.locator(".note")).to_contain_text("unknown")
             note = artist.locator(".note").inner_text()
             self.assertIn("unknown", note)
             self.assertIn("one subscription is enough", note)
@@ -298,7 +346,7 @@ class StudioPageTests(unittest.TestCase):
                 "showing the consequence must not enable the role")
 
             artist.get_by_role("button", name="Turn it on anyway").click()
-            page.wait_for_timeout(600)
+            expect(page.locator("#team li", has_text="Artist")).not_to_contain_text("Off")
             self.assertNotIn(
                 "Off", page.locator("#team li", has_text="Artist").inner_text())
         finally:

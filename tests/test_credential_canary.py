@@ -201,8 +201,16 @@ class ConnectionApiCanaryTests(unittest.TestCase):
         clock.start()
         self.addCleanup(clock.stop)
         self.app.state.connector_setup_approval = lambda **scope: approval_fixture(**scope)
+        # This canary tests secret-bearing HTTP surfaces, not installed CLI
+        # liveness. A slow unrelated CLI must not outlive the temporary DB.
+        health = patch("agent_factory.providers.CLIProvider.health", autospec=True,
+                       side_effect=lambda provider: {"provider": provider.name,
+                           "healthy": False, "error": "Synthetic canary probe"})
+        health.start()
+        self.addCleanup(health.stop)
         self.client = TestClient(self.app, base_url="http://localhost")
-        self.addCleanup(self.client.close)
+        self.client.__enter__()
+        self.addCleanup(self.client.__exit__, None, None, None)
         self.headers = {
             "Authorization": "Bearer local-synthetic-token",
             "X-Agent-Factory-Confirm": "true",

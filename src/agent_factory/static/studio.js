@@ -6,6 +6,9 @@
     generation: 0, roster: {roles: []}, offering: null,
   };
   const query = new URLSearchParams(location.search);
+  let createCommand = null;
+  let creating = false;
+  let pendingLoads = 0;
 
   // Every visible string comes from the server's catalogue, so a missing
   // translation shows up as a missing key rather than as silent Ukrainian.
@@ -81,7 +84,8 @@
     });
     const payload = await readJson(response);
     if (!response.ok || payload.error) {
-      throw new Error(payload.error ? payload.error.message : `HTTP ${response.status}`);
+      const detail = payload.detail === 'local_studio_not_ready' ? say('studio.create.notready') : payload.detail;
+      throw new Error(payload.error ? payload.error.message : (typeof detail === 'string' ? detail : `HTTP ${response.status}`));
     }
     return payload;
   }
@@ -322,7 +326,8 @@
     ]));
     byId('run-grant').hidden = Boolean(mandate);
     byId('run-revoke').hidden = !mandate;
-    byId('run-ceiling').parentElement.hidden = Boolean(mandate);
+    byId('run-ceiling').hidden = Boolean(mandate);
+    document.querySelector('label[for="run-ceiling"]').hidden = Boolean(mandate);
     const steps = run.steps || [];
     replace(byId('run-steps'), steps.map(step => {
       const entry = element('li');
@@ -339,10 +344,12 @@
     // flight. Only the newest one may paint, or a slow answer about the old
     // game quietly replaces what is on the screen.
     const generation = ++state.generation;
+    pendingLoads += 1;
     try {
-      const [first, plan, decisions, tools, money, roster, cycles, machines, run] =
+      const [first, local, plan, decisions, tools, money, roster, cycles, machines, run] =
         await Promise.all([
-          maybe('/api/studio/first-run', {can_start: true, summary: ''}),
+          get('/api/studio/first-run'),
+          get('/api/studio/local-readiness'),
           maybe(`/api/studio/plan/${encodeURIComponent(state.mission)}`, {stages: []}),
           maybe(`/api/studio/decisions?mission=${encodeURIComponent(state.mission)}`, {questions: []}),
           maybe(`/api/studio/paid-tools/${encodeURIComponent(state.mission)}`, {open: []}),
@@ -355,6 +362,9 @@
         ]);
       if (generation !== state.generation) return;
       byId('start-blocked').hidden = Boolean(first.can_start);
+      byId('create-game').disabled = creating || !local.can_start;
+      byId('create-game').title = local.summary;
+      byId('create-readiness').textContent = local.summary;
       showPlan(plan);
       showQuestions(decisions, tools, money);
       showMoney(money);
@@ -367,8 +377,12 @@
         : first.summary;
     } catch (error) {
       if (generation === state.generation) {
+        byId('create-game').disabled = true;
+        byId('create-readiness').textContent = say('studio.error', {message: error.message});
         byId('summary').textContent = say('studio.error', {message: error.message});
       }
+    } finally {
+      pendingLoads -= 1;
     }
   }
 
@@ -424,7 +438,7 @@
         const ceiling = Number(byId('run-ceiling').value);
         await post(`/api/studio/supervisor/${mission}`, {
           actor: who, steps: ['plan'],
-          ceiling: Number.isFinite(ceiling) && ceiling > 0 ? ceiling : null,
+          ceiling: Number.isFinite(ceiling) && ceiling >= 0 ? ceiling : 0,
         });
       } else {
         await post(`/api/studio/supervisor/${mission}/revoke`, {actor: who});
@@ -440,6 +454,32 @@
   }
 
   function start() {
+    if (query.get('mission')) byId('mission').value = query.get('mission');
+    byId('create-form').addEventListener('submit', async event => {
+      event.preventDefault();
+      if (creating || byId('create-game').disabled) return;
+      creating = true;
+      byId('create-game').disabled = true;
+      createCommand = createCommand || crypto.randomUUID();
+      try {
+        const answer = await post('/api/studio/create', {
+          command_id: createCommand, title: byId('game-title').value.trim(),
+          idea: byId('game-idea').value.trim(),
+        });
+        byId('mission').value = answer.mission_key;
+        byId('create-result').textContent = say('studio.create.queued');
+        createCommand = null;
+        await load();
+      } catch (error) {
+        byId('create-result').textContent = say('studio.error', {message: error.message});
+      } finally {
+        creating = false;
+        await load();
+      }
+    });
+    for (const id of ['game-title', 'game-idea']) {
+      byId(id).addEventListener('input', () => { if (!creating) createCommand = null; });
+    }
     byId('refresh').addEventListener('click', () => load());
     byId('mission').addEventListener('change', () => {
       state.offering = null;
@@ -453,6 +493,7 @@
     loadMessages().then(load).catch(error => {
       byId('summary').textContent = say('studio.error', {message: error.message});
     });
+    setInterval(() => { if (!document.hidden && pendingLoads === 0) load(); }, 5000);
   }
 
   if (document.readyState === 'loading') {

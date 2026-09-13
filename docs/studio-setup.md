@@ -1,5 +1,9 @@
 # Who is in the studio, which machine answers, and when work can start
 
+The [implementation audit](ai-studio-audit.en.md) adds a concrete local worker
+setup command. Unlike merely recording a source, local studio launch checks
+real API/CLI qualification and the exact model and provider-profile digests.
+
 Requirement trace: `AF-ST-201` and `AF-ST-202` (epic `AF-ST-E2`), `AF-ST-701`,
 `AF-ST-702` and `AF-ST-703` (epic `AF-ST-E7`), and `AF-ST-102` (epic
 `AF-ST-E1`). None is labelled accepted here; what is missing is at the bottom.

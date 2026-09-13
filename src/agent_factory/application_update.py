@@ -399,7 +399,7 @@ def uninstall_plan(
     projects = tuple(str(Path(path)) for path in project_paths)
     overlapping = [
         path for path in projects
-        if any(path == item or path.startswith(item + "/") for item in application)
+        if any(Path(path).resolve().is_relative_to(Path(item).resolve()) for item in application)
     ]
     if overlapping:
         raise UpdateRefused(

@@ -1,5 +1,10 @@
 # The studio starts the work itself
 
+For the current local launch path and remaining gaps, see the
+[implementation audit](ai-studio-audit.en.md). `/api/studio/create` now records
+the authenticated owner's planning mandate and queues work through a local
+runner. The older mandate-only endpoint still records authority without dispatch.
+
 Everything else in this product decides *whether* something may happen and
 records that it did. Nothing moved a mission. A person described a game, the
 intake wrote a real mission in `DRAFT`, and there it stayed — because no
@@ -114,8 +119,9 @@ money ceilings, and a browser test of the card on `/studio`.
   it in the person's language, rather than pretending.
 - **Nothing executes the approved plan.** After approval there is a backlog and
   an execution epoch, and no code in this repository writes the game.
-- **The supervisor does not run as a service.** It runs when something calls it:
-  `lokvetia studio run`, or the screen. Nothing polls in the background yet.
+- **The supervisor is not a durable execution service.** The local studio now
+  queues explicitly requested planning in a background thread. It does not
+  automatically resume arbitrary missions or execute approved game work.
 - **A mandate is not authentication.** It records a name the caller supplied,
   like every other named act in the studio.
 

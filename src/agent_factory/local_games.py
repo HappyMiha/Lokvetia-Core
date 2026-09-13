@@ -46,10 +46,10 @@ def search(value):
 
 
 @contextmanager
-def local_games_lock(database):
+def local_games_lock(database, *, timeout=10):
     database = Path(database).resolve()
     database.parent.mkdir(parents=True, exist_ok=True)
-    with closing(sqlite3.connect(str(database) + '.local-games-lock', timeout=10)) as lock:
+    with closing(sqlite3.connect(str(database) + '.local-games-lock', timeout=timeout)) as lock:
         with lock:
             lock.execute('BEGIN IMMEDIATE')
             yield

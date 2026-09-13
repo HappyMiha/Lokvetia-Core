@@ -38,7 +38,7 @@ Issues = "https://github.com/HappyMiha/Lokvetia-Core/issues"
 "Game creation with Lokiravia" = "https://github.com/HappyMiha/Lokiravia"
 
 [project.optional-dependencies]
-dev = ["build>=1.2", "httpx2>=2.10,<3"]
+dev = ["build>=1.2", "httpx2>=2.10,<3", "httpx>=0.28,<1"]
 web = ["fastapi>=0.116,<1", "uvicorn>=0.35,<1", "pypdf>=5,<7", "python-multipart>=0.0.20,<1"]
 
 [tool.setuptools]

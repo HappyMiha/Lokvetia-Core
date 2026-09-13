@@ -423,6 +423,9 @@ def _require_confirmation(command: ConfirmedCommand, header: str | None) -> None
 def create_app(workspace: Path, database: Path, *, environment_probes=None, credential_store=None) -> FastAPI:
     workspace = workspace.expanduser().resolve()
     database = database.expanduser().resolve()
+    from .studio_runner import StudioRunner
+    from .studio_launch_web import install_routes as install_studio_launch_routes
+    studio_runner = StudioRunner(database, workspace)
     temporal_settings = TemporalSettings.from_env()
     probe_executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="provider-health")
     probe_guard = threading.RLock()
@@ -474,6 +477,7 @@ def create_app(workspace: Path, database: Path, *, environment_probes=None, cred
             yield
         finally:
             probe_executor.shutdown(wait=False, cancel_futures=True)
+            studio_runner.close()
 
     app = FastAPI(
         title="Lokvetia Core — Local Control Center",
@@ -493,17 +497,21 @@ def create_app(workspace: Path, database: Path, *, environment_probes=None, cred
 
     app.add_middleware(LocalHTTPBoundary, access=access)
     install_sso_routes(app, access)
+    from .desktop_downloads import install_download_routes
+    install_download_routes(app)
     install_credential_routes(app, workspace, store=credential_store)
     install_hardware_routes(app, workspace)
     install_game_planning_routes(app, database)
     install_configuration_advice_routes(app)
     install_installation_routes(app, database, workspace)
+    install_studio_launch_routes(app, database, workspace, studio_runner)
 
     @app.get("/auth/session", include_in_schema=False)
     async def session_status(request: Request):
         principal = request.state.local_principal
         return {"authentication_required": bool(request.state.local_policy.token),
                 "authenticated": principal is not None,
+                "workspace_access": bool(principal and principal.role != 'account_user'),
                 "actor": principal.actor if principal else None}
 
     @app.post("/auth/session", include_in_schema=False)

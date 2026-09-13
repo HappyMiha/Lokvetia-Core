@@ -425,7 +425,9 @@ def inspect_archive(
 
 
 def _member_refusal(info: zipfile.ZipInfo, seen: set[str]) -> str:
-    name = info.filename
+    # ZipInfo normalizes Windows separators and truncates NULs in filename.
+    # Validate the original archive entry before either transformation.
+    name = info.orig_filename
     if not name or len(name) > MAX_MEMBER_NAME:
         return "member name is empty or too long"
     if "\x00" in name or "\\" in name:

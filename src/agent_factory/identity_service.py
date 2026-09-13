@@ -16,6 +16,7 @@ from urllib.parse import urlencode
 from fastapi import FastAPI, Request
 from starlette.concurrency import run_in_threadpool
 from starlette.responses import FileResponse, JSONResponse, RedirectResponse
+from starlette.staticfiles import StaticFiles
 
 from .email_auth import Accounts, EmailAccess, digest
 from .email_auth_web import install_routes
@@ -40,7 +41,11 @@ def create_identity_app(folder: Path, clients: dict):
         ''')
     app.state.local_access = access
     app.add_middleware(LocalHTTPBoundary, access=access)
-    install_routes(app, access, product='Lokvetia Account')
+    install_routes(app, access, product='Lokvetia Account',
+                   personal_registration=os.getenv('LOKVETIA_PERSONAL_REGISTRATION') == '1')
+    app.mount('/assets', StaticFiles(directory=Path(__file__).parent / 'static'), name='assets')
+    from .desktop_downloads import install_download_routes
+    install_download_routes(app)
 
     def session_row(cookie):
         if not cookie:
@@ -52,7 +57,9 @@ def create_identity_app(folder: Path, clients: dict):
 
     @app.get('/auth/session')
     async def session(request: Request):
-        return {'authenticated': request.state.local_principal is not None}
+        principal = request.state.local_principal
+        return {'authenticated': principal is not None,
+                'workspace_access': bool(principal and principal.role != 'account_user')}
 
     @app.get('/login')
     async def login_page():
@@ -75,10 +82,13 @@ def create_identity_app(folder: Path, clients: dict):
             profile = db.execute('SELECT display_name FROM profiles WHERE email=?', (row['email'],)).fetchone()
             members = db.execute('SELECT email, principal FROM accounts WHERE enabled=1').fetchall()
         admin = request.state.local_principal.role == 'operations_owner'
+        personal = request.state.local_principal.role == 'account_user'
         return dict(email=row['email'], display_name=profile[0] if profile else '',
-                    organization=dict(id=organization, name=organization_name), can_invite=admin,
+                    organization=None if personal else dict(id=organization, name=organization_name), can_invite=admin,
+                    personal_account=personal, email_verified=False,
                     members=[dict(email=r['email'], role=json.loads(r['principal'])['role']) for r in members] if admin else [],
-                    applications=[dict(name=c['name'], url=c['origin']) for c in clients.values()])
+                    applications=[dict(name='Завантажити Lokvetia Core', url='/downloads')] if personal else
+                                 [dict(name=c['name'], url=c['origin']) for c in clients.values()])
 
     @app.post('/api/account')
     async def update_profile(request: Request):

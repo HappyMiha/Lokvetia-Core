@@ -11,6 +11,7 @@ import re
 import secrets
 import sqlite3
 import time
+import uuid
 from urllib.parse import urlencode
 
 from .http_auth import LocalAccess, Policy, Principal
@@ -94,6 +95,32 @@ class Accounts:
                            (email, salt, hashed, record['principal']))
             except sqlite3.IntegrityError as error:
                 raise ValueError('Invitation is invalid or expired') from error
+
+    def register_personal(self, email: str, password: str, *, peer: str):
+        """Create a personal download account, never an organization operator.
+
+        Email is a login identifier, not a verified identity. Invitations reserve
+        their address; signup cannot claim an existing member's authority.
+        """
+        email = email_address(email)
+        if not isinstance(password, str) or not 12 <= len(password) <= 128:
+            raise ValueError('Use a password of 12 to 128 characters')
+        self.allow_attempt('signup:' + email, 'signup:' + peer)
+        actor = 'user-' + uuid.uuid4().hex
+        principal = json.dumps(dict(actor=actor, role='account_user',
+                                    scopes=['read', 'write'], tenants=['account:' + actor]))
+        salt = secrets.token_hex(16)
+        hashed = password_hash(password, salt)
+        with closing(self.connect()) as db, db:
+            db.execute('BEGIN IMMEDIATE')
+            if db.execute('SELECT 1 FROM invitations WHERE email=? AND used=0 AND expires>?',
+                          (email, self.clock())).fetchone():
+                raise ValueError('Use your invitation or another email address')
+            try:
+                db.execute('INSERT INTO accounts(email,salt,password,principal) VALUES (?,?,?,?)',
+                           (email, salt, hashed, principal))
+            except sqlite3.IntegrityError as error:
+                raise ValueError('This address is unavailable; sign in or use another address') from error
 
     def allow_attempt(self, email: str, peer: str):
         now = self.clock()

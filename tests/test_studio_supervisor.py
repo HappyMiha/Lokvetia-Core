@@ -137,6 +137,45 @@ class MandateTests(Fixture):
 class RefusalTests(Fixture):
     """Every reason not to start is a sentence, never silence."""
 
+    def test_pause_blocks_new_work_and_resume_allows_it(self):
+        from agent_factory.studio_cycles import StudioCycles
+        self.connect_a_source()
+        self.mandate("plan")
+        cycles = StudioCycles(self.storage)
+        cycles.pause(self.mission, actor="Miha")
+        driver = Driver()
+        self.assertEqual(self.supervisor.advance(self.mission, driver).outcome, "waiting")
+        self.assertEqual(driver.calls, [])
+        cycles.resume(self.mission, actor="Miha")
+        self.assertTrue(self.supervisor.advance(self.mission, driver).moved)
+
+    def test_another_person_cannot_delegate_the_mission_owner(self):
+        self.connect_a_source()
+        self.mandate("plan")
+        driver = Driver(owner="another-person")
+        self.assertEqual(self.supervisor.advance(self.mission, driver).outcome, "refused")
+        self.assertEqual(driver.calls, [])
+
+    def test_a_mandate_cannot_be_used_for_another_mission_of_the_same_owner(self):
+        self.connect_a_source()
+        self.mandate("plan")
+        class OtherGame(Driver):
+            def state(self):
+                return MissionState(2, "Miha", "DRAFT", "RUNNING", 3, "other-game")
+        driver = OtherGame()
+        self.assertEqual(self.supervisor.advance(self.mission, driver).outcome, "refused")
+        self.assertEqual(driver.calls, [])
+
+    def test_stopped_mission_cannot_be_started_by_a_mandate(self):
+        self.connect_a_source()
+        self.mandate("plan")
+        class Stopped(Driver):
+            def state(self):
+                return MissionState(1, "Miha", "DRAFT", "STOPPED", 3)
+        driver = Stopped()
+        self.assertEqual(self.supervisor.advance(self.mission, driver).outcome, "waiting")
+        self.assertEqual(driver.calls, [])
+
     def test_without_a_mandate_nothing_happens_at_all(self):
         driver = Driver()
         step = self.supervisor.advance(self.mission, driver)
@@ -337,12 +376,46 @@ class RestartTests(Fixture):
         return self.supervisor._open(self.mission, "plan", mandate=None, actor="Miha",
                                      command_id="c1", at="2026-09-13T07:00:00+00:00")
 
+    def test_another_runner_cannot_reconcile_a_live_step_as_a_crash(self):
+        import threading
+        from concurrent.futures import ThreadPoolExecutor
+        from contextlib import closing
+        entered, release, second_started, second_done = (threading.Event() for _ in range(4))
+        class Slow(Driver):
+            def plan(self, **kwargs):
+                entered.set()
+                if not release.wait(15): raise TimeoutError("test did not release the step")
+                return super().plan(**kwargs)
+        driver = Slow()
+        def run(second=False):
+            with closing(SQLiteStorage(self.storage.path)) as storage:
+                if second: second_started.set()
+                result = Supervisor(storage).advance(self.mission, driver)
+                if second: second_done.set()
+                return result
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            first = pool.submit(run)
+            try:
+                self.assertTrue(entered.wait(10))
+                second = pool.submit(run, True)
+                self.assertTrue(second_started.wait(10))
+                self.assertFalse(second_done.wait(.2), "a live step must stay locked")
+            finally:
+                release.set()
+            self.assertTrue(first.result(timeout=15).moved)
+            self.assertEqual(second.result(timeout=15).outcome, "refused")
+        self.assertEqual(len(driver.calls), 1)
+        self.assertNotIn("unknown", [step.outcome for step in self.supervisor.history(self.mission)])
+
     def test_an_interrupted_step_is_never_repeated(self):
         self.interrupt()
         driver = Driver()
         step = self.supervisor.advance(self.mission, driver)
         self.assertEqual(step.outcome, "unknown")
         self.assertEqual(driver.calls, [], "paid work is not re-run to make sure")
+        for _ in range(3):
+            self.assertEqual(self.supervisor.advance(self.mission, driver).outcome, "unknown")
+        self.assertEqual(driver.calls, [], "later polls must preserve the uncertainty")
 
     def test_the_person_is_told_it_may_already_have_been_paid_for(self):
         self.interrupt()

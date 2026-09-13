@@ -59,7 +59,8 @@ async def proxy(request: Request):
         document, data, unavailable = PAGES[page]
         try:
             auth = await client.get(upstream + '/auth/session', headers=headers, timeout=8)
-            if auth.status_code != 200 or not auth.json().get('authenticated'):
+            if (auth.status_code != 200 or not auth.json().get('authenticated')
+                    or not auth.json().get('workspace_access', False)):
                 return RedirectResponse('/login', status_code=303) if request.url.path == page else JSONResponse({'error': 'Sign-in required'}, status_code=401)
         except (httpx.HTTPError, ValueError):
             return JSONResponse({'error': 'Authorization service unavailable'}, status_code=503)
