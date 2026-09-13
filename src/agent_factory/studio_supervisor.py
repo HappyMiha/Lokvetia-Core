@@ -627,7 +627,11 @@ class Supervisor:
             "SELECT * FROM studio_supervisor_steps WHERE mission=? AND outcome='unknown' "
             "ORDER BY id DESC LIMIT 1", (mission,),
         ).fetchone()
-        if unresolved is not None:
+        mandate = self.mandate(mission, at=stamp)
+        recovery = self.storage.db.execute(
+            'SELECT * FROM studio_planning_recoveries WHERE mandate_id=?',
+            (mandate.identifier if mandate else 0,)).fetchone()
+        if unresolved is not None and not (recovery and recovery['through_step_id'] >= unresolved['id']):
             return self._step_row(unresolved)
 
         mandate = self.mandate(mission, at=stamp)
@@ -704,6 +708,8 @@ class Supervisor:
                                detail=money["summary"], at=stamp)
 
         command_id = f"supervisor:{mission}:{step}:{state.version}"
+        if recovery:
+            command_id += f":recovery:{recovery['id']}"
         identifier = self._open(mission, step, mandate=mandate, actor=state.owner,
                                 command_id=command_id, at=stamp)
         try:
@@ -887,10 +893,14 @@ class CoreMissionDriver:
                 command_id=f"{command_id}:phase:{ordinal}",
                 expected_version=mission.version,
                 reason="The studio is planning this game under a mandate")
+        mandate = Supervisor(self.storage).mandate(mission.mission_key)
+        recovery = self.storage.db.execute('SELECT source_run_id FROM studio_planning_recoveries WHERE mandate_id=?',
+            (mandate.identifier if mandate else 0,)).fetchone()
         run = pipeline.execute(
             self.mission_id, manifest_id=manifest.id,
             planning_authorization_id=authority.id, actor=actor,
-            command_id=command_id + ":pipeline")
+            command_id=command_id + ":pipeline",
+            recovery_from_run_id=recovery['source_run_id'] if recovery else None)
         report = verifier.verify_and_present(
             run.id, actor=actor, command_id=command_id + ":verification",
             expected_mission_version=mission.version)

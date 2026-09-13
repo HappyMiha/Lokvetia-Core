@@ -19,6 +19,13 @@ class CreateStudioGame(BaseModel):
     confirmed: StrictBool
 
 
+class RecoverStudioGame(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    command_id: UUID
+    checkpoint: str = Field(pattern='^[0-9a-f]{64}$')
+    confirmed: StrictBool
+
+
 def install_routes(app, database, workspace, runner):
     def owner(request):
         principal = request.state.local_principal
@@ -98,6 +105,21 @@ def install_routes(app, database, workspace, runner):
                                      idea=command.idea, runner=runner)
         except (KeyError, ValueError, OSError) as error:
             raise HTTPException(409, "local_studio_not_ready") from error
+
+    @app.post('/api/studio/games/{mission_id}/recover',status_code=202)
+    def resume(mission_id: int, request: Request, command: RecoverStudioGame):
+        from .studio_recovery import recover
+        actor = owner(request)
+        if not command.confirmed or request.headers.get('X-Agent-Factory-Confirm') != 'true':
+            raise HTTPException(400,'confirmation_required')
+        try:
+            return recover(database,workspace,runner,mission_id=mission_id,actor=actor,
+                command_id=command.command_id,expected_checkpoint=command.checkpoint)
+        except KeyError:
+            raise HTTPException(404,'game_not_found') from None
+        except (ValueError,OSError) as error:
+            code=str(error) if str(error).startswith('recovery_') else 'local_studio_not_ready'
+            raise HTTPException(409,code) from None
 
     @app.get("/api/studio/jobs/{mission_id}")
     def status(mission_id: int, request: Request):

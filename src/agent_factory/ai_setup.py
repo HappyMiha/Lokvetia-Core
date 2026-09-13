@@ -37,6 +37,9 @@ STEPS = {
     'login': 'Завершіть вхід у вікні провайдера. Далі все зробимо автоматично.',
     'check': 'Надсилаємо коротку перевірку підключення…',
     'start': 'Запускаємо локальний AI…', 'download': 'Завантажуємо локальну модель. Це може тривати кілька хвилин…',
+    'qualify': 'Перевіряємо готовність моделі до роботи у студії. Кілька коротких локальних перевірок, до 4 хвилин…',
+    'qualification_failed': 'Модель встановлена, але перевірка готовності до студії не пройшла. Закрийте важкі програми й повторіть підключення. Повторно завантажувати модель не потрібно.',
+    'worker_busy': 'Локальна модель зараз працює над грою. Дочекайтеся завершення або зупиніть планування, потім повторіть підключення.',
     'ready': 'Підключено. AI відповів на перевірку.', 'cancelled': 'Підключення скасовано.',
     'timeout': 'Час очікування минув. Спробуйте ще раз.',
     'missing': 'Автовстановлення недоступне на цьому ПК. Встановіть офіційний інструмент і повторіть.',
@@ -352,8 +355,23 @@ class AISetup:
             if not command:
                 raise SetupError('missing')
             model = ''
+            qualification = None
             if provider == 'ollama':
-                model = self.local(ident, command, invoke, check)
+                from .local_games import local_games_lock
+                try:
+                    with local_games_lock(str(self.database)+'.studio-inference',timeout=.1):
+                        model = self.local(ident, command, invoke, check)
+                        self.update(ident,step='qualify')
+                        from .local_role_qualification import qualify
+                        from .environment_model_probe import provider_profile
+                        provider_profile(self.workspace)
+                        qualification = qualify(model,before_request=check)
+                except sqlite3.OperationalError as error:
+                    raise SetupError('worker_busy') from error
+                except SetupError:
+                    raise
+                except Exception as error:
+                    raise SetupError('qualification_failed') from error
             elif provider == 'codex':
                 code, _ = invoke(command + ['login', 'status'], seconds=15)
                 if code:
@@ -420,7 +438,7 @@ class AISetup:
                 self.checked(code, answer, output)
                 model = 'gemini-cli-default'
             check()
-            self.record(provider, actor, model, command, ident=ident, authorize=authorize)
+            self.record(provider, actor, model, command, ident=ident, authorize=authorize,qualification=qualification)
         except Exception as error:
             reason = str(error) if isinstance(error, SetupError) and str(error) in STEPS else 'failed'
             try:
@@ -519,7 +537,7 @@ class AISetup:
         self.checked(0, result.get('response', ''), '')
         return model
 
-    def record(self, provider, actor, model, command, *, ident, authorize):
+    def record(self, provider, actor, model, command, *, ident, authorize,qualification=None):
         """Connection evidence is separate from role/job approval and spending."""
         from .local_games import local_games_lock
         from .localisation import Message
@@ -532,6 +550,23 @@ class AISetup:
                 raise SetupError('cancelled')
             with local_games_lock(self.database):
                 with closing(SQLiteStorage(self.database)) as storage:
+                    if provider == 'ollama':
+                        from .studio_workers import StudioMachines
+                        from .hardware_inventory import collect_inventory
+                        from .environment_model_probe import validate_result,provider_profile,model_inventory
+                        profile,_ = provider_profile(self.workspace)
+                        validate_result(qualification,'local:'+model,profile,model_inventory('local:'+model))
+                        hardware=collect_inventory(self.workspace)
+                        memory=max((gpu.get('dedicated_total_bytes') or 0 for gpu in hardware['gpus']),default=0)
+                        machines=StudioMachines(storage)
+                        machine_key='local-'+socket.gethostname().lower()
+                        # Real bounded inference qualifies CPU/offloaded models too;
+                        # do not claim their RAM is dedicated GPU memory.
+                        existing=next((m for m in machines.machines() if m.machine_key==machine_key),None)
+                        machines.register(machine_key,name=socket.gethostname(),kind='this_pc',
+                            capabilities=existing.capabilities if existing else [],video_memory_gb=memory/1024**3,registered_by=actor)
+                        machines.report(machine_key,kind='hardware_inventory',body=hardware)
+                        machines.report(machine_key,kind='local_model_qualification',body=qualification)
                     FirstRun(storage).connect(provider, kind='local_model' if provider == 'ollama' else 'own_subscription',
                         name=model or TITLES[provider], state='verified', connected_by=actor,
                         machine_key='local-' + socket.gethostname().lower(),

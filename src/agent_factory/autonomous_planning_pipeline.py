@@ -811,6 +811,7 @@ class AutonomousPlanningPipelineService:
         actor: str,
         command_id: str,
         max_attempts_per_role: int,
+        recovery_from_run_id: int | None = None,
     ) -> PlanningPipelineRun:
         authorization = self.authorizations.get_planning_authorization(
             planning_authorization_id
@@ -828,6 +829,8 @@ class AutonomousPlanningPipelineService:
             "actor": actor,
             "max_attempts_per_role": max_attempts_per_role,
         }
+        if recovery_from_run_id is not None:
+            request['recovery_from_run_id'] = recovery_from_run_id
         request_digest = self._digest(request)
         replay = self._existing_run(command_id, request_digest)
         if replay:
@@ -920,12 +923,22 @@ class AutonomousPlanningPipelineService:
         actor: str,
         command_id: str,
         max_attempts_per_role: int = 2,
+        recovery_from_run_id: int | None = None,
     ) -> PlanningPipelineRun:
         actor = self._required(actor, "Pipeline actor")
         command_id = self._required(command_id, "Command id")
         if not 1 <= int(max_attempts_per_role) <= 5:
             raise ValueError("Role repair attempts must be between one and five")
         manifest = self.planning.get_manifest(manifest_id)
+        recovery = self.get_run(recovery_from_run_id) if recovery_from_run_id is not None else None
+        if recovery:
+            previous = self.planning.get_manifest(recovery.manifest_id)
+            if (recovery.mission_id != mission_id or previous.stale
+                    or previous.specification_source_digest != manifest.specification_source_digest
+                    or previous.role_pack_digest != manifest.role_pack_digest
+                    or [{k:v for k,v in a.to_dict().items() if k!='logical_agent_id'} for a in previous.assignments]
+                    != [{k:v for k,v in a.to_dict().items() if k!='logical_agent_id'} for a in manifest.assignments]):
+                raise ValueError('Recovery source, role contracts or models changed')
         run = self._create_run(
             mission_id=mission_id,
             manifest=manifest,
@@ -933,6 +946,7 @@ class AutonomousPlanningPipelineService:
             actor=actor,
             command_id=command_id,
             max_attempts_per_role=int(max_attempts_per_role),
+            recovery_from_run_id=recovery_from_run_id,
         )
         if run.status == "COMPLETED":
             return run
@@ -959,6 +973,7 @@ class AutonomousPlanningPipelineService:
                         for role_id in AUTONOMOUS_PLANNING_ROLE_IDS
                         if role_id in artifacts
                     ),
+                    recovery=recovery,
                 )
                 artifacts[assignment.role_id] = artifact
             self.authorizations.close_planning_authority(
@@ -1000,6 +1015,7 @@ class AutonomousPlanningPipelineService:
         assignment: PlanningRoleAssignment,
         *,
         prior_artifacts: tuple[PlanningPipelineArtifact, ...],
+        recovery: PlanningPipelineRun | None = None,
     ) -> PlanningPipelineArtifact:
         attempts = self.storage.db.execute(
             """SELECT * FROM autonomous_planning_pipeline_invocations
@@ -1009,7 +1025,7 @@ class AutonomousPlanningPipelineService:
         feedback = (
             tuple(json.loads(attempts[-1]["validation_errors_json"]))
             if attempts
-            else ()
+            else recovery.failure_errors if recovery and recovery.failed_role_id == assignment.role_id else ()
         )
         next_attempt = len(attempts) + 1
         while next_attempt <= run.max_attempts_per_role:
@@ -1083,7 +1099,18 @@ class AutonomousPlanningPipelineService:
                 validation_feedback=feedback,
             )
             try:
-                result = self.invoker.invoke(request)
+                # Revalidate durable outputs against fresh context and authority.
+                # This is explicitly marked reuse, never a claimed new inference.
+                saved = next((a for a in recovery.artifacts if a.role_id == assignment.role_id), None) if recovery else None
+                if recovery and recovery.status == 'COMPLETED' and assignment.invocation_order > 2:
+                    saved = None  # A rejected complete proposal needs a fresh design/review.
+                if saved and next_attempt == 1:
+                    result = ProviderResult(True, provider=assignment.provider_id,
+                        content=self._json({'output':saved.content,'evidence':saved.evidence}),
+                        metadata={'reused_from_run_id':recovery.id,'reused_from_artifact_id':saved.id,
+                                  'source_artifact_digest':saved.artifact_digest,'inference_performed':False})
+                else:
+                    result = self.invoker.invoke(request)
             except Exception as exc:  # Provider failures are bounded input evidence.
                 result = ProviderResult(
                     False,

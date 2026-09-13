@@ -9,7 +9,7 @@ from types import SimpleNamespace
 import unittest
 from unittest.mock import MagicMock,patch
 from agent_factory.web import create_app
-from agent_factory import studio_launch_web  # Bind imports before patching the source-check seam.
+from agent_factory import studio_launch_web,studio_recovery  # Bind imports before patching the source-check seam.
 try:
     from playwright.sync_api import sync_playwright,expect
 except ImportError:sync_playwright=None
@@ -24,7 +24,7 @@ class ProgressBrowserTests(unittest.TestCase):
     def setUp(self):
         self.temp=tempfile.TemporaryDirectory();self.root=Path(self.temp.name);self.stack=ExitStack()
         self.stack.enter_context(patch.dict(os.environ,{'AGENT_FACTORY_API_TOKEN':'','AGENT_FACTORY_API_ACTOR':'Founder','AGENT_FACTORY_TEMPORAL_ENABLED':'false'}))
-        for module in ['studio_start','studio_launch_web']:
+        for module in ['studio_start','studio_launch_web','studio_recovery']:
             self.stack.enter_context(patch('agent_factory.'+module+'.checked_local_source',return_value=SimpleNamespace(name='qwen2.5-coder:7b')))
         self.runner=MagicMock();self.states={}
         self.runner.submit.side_effect=lambda ident:self.states.__setitem__(ident,'running')
@@ -73,6 +73,18 @@ class ProgressBrowserTests(unittest.TestCase):
         expect(self.page.locator('#planning-status')).to_contain_text('не підтверджене')
         expect(self.page.locator('#planning-artifacts')).to_contain_text('Ще немає')
         self.runner.submit.assert_called_once()
+
+    def test_stopped_game_recovers_in_place_and_navigation_never_retries(self):
+        self.create();url=self.page.url
+        self.page.locator('#planning-stop').click()
+        expect(self.page.locator('#planning-recovery')).to_be_visible()
+        expect(self.page.locator('#recovery-scope')).to_contain_text('не більше 2')
+        self.page.locator('#planning-recover').click()
+        expect(self.page.locator('#planning-status')).to_contain_text('триває')
+        self.assertEqual(self.page.url,url);self.assertEqual(self.runner.submit.call_count,2)
+        self.page.reload();expect(self.page.locator('#planning-recovery')).to_be_hidden()
+        expect(self.page.locator('#game-library button')).to_have_count(1)
+        self.assertEqual(self.runner.submit.call_count,2)
 
     def test_loss_of_owner_access_hides_previous_game_details(self):
         self.create()

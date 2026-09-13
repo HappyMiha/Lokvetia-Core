@@ -6,7 +6,7 @@ Open **Settings → AI access** in your local Lokvetia installation, or visit `/
 | --- | --- | --- |
 | Codex CLI | Click **Connect**. Sign in to ChatGPT if prompted. | Finds the official CLI, reuses its existing login, or opens official login; checks an actual response. |
 | Gemini CLI | Click **Connect**. Complete Google login when available; enter a Gemini API key if Google refuses this login method. | Reuses CLI authentication, opens the official Google flow when needed, stores an optional key in Windows Credential Manager, then checks the response. |
-| Local model | Click **Connect**. No account or key. | Finds or installs Ollama, starts it when needed, uses an installed supported Qwen model or downloads Qwen 2.5 Coder 7B, then checks a response. |
+| Local model | Click **Connect**. No account or key. | Finds or installs Ollama, starts it when needed, uses an installed supported Qwen model or downloads Qwen 2.5 Coder 7B, then checks a response and automatically qualifies the local planning roles. |
 
 One connected AI is enough to leave this page. You can add others later. A browser reload restores the current connection job. **Cancel** stops setup; **Disconnect** removes Lokvetia's connection and any stored Gemini key. It does not sign you out of your official CLI, uninstall software, delete models, or stop an existing Ollama service. Execution permissions for projects remain separate.
 
@@ -17,6 +17,8 @@ One connected AI is enough to leave this page. You can add others later. A brows
 Якщо Google відмовить у вході через Gemini CLI, з’явиться одне поле **Gemini API key** з посиланням на Google AI Studio. Вставте ключ і натисніть **Зберегти й підключити**. Ключ не потрібно надсилати в чат, записувати у файл конфігурації чи вставляти в командний рядок.
 
 Коли з’явиться **Підключено**, натисніть **Перейти до студії**. Для локальної моделі акаунт і ключ не потрібні. Якщо підтримуваної моделі немає, завантаження займає приблизно 4,7 ГБ. Майстер перевіряє мінімум 8 ГБ оперативної пам’яті та 6 ГБ вільного місця перед завантаженням.
+
+На кожному новому ПК відкрийте встановлену локальну студію й натисніть **Підключити** на картці локального AI. Майстер також автоматично реєструє цей ПК і перевіряє сім ролей короткими локальними запитами API та CLI, до чотирьох хвилин на перевірку. Готовність записується в базу саме цієї інсталяції. На ПК без окремої відеокарти фактичні перевірки все одно мають пройти в межах часу; сам факт встановлення не означає готовність. Невдала перевірка показує дію для повторення, а встановлену модель зберігає. Це перевірка формату й доступності, а не гарантія якості плану для довільної гри.
 
 ## Scope and recovery
 
