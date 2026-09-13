@@ -22,6 +22,7 @@ class StudioRunner:
         self.executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="studio-local")
         self.guard = threading.Lock()
         self.jobs = {}
+        self.cancellations = {}
         self.active = set()
         self.stopping = threading.Event()
 
@@ -30,13 +31,14 @@ class StudioRunner:
             previous = self.jobs.get(mission_id)
             if previous is not None and not previous.done():
                 return False
+            self.cancellations[mission_id] = threading.Event()
             self.jobs[mission_id] = self.executor.submit(self._run, mission_id)
             return True
 
     def _run(self, mission_id):
         # One inference stream even when two local web processes share this DB.
         # Unlike the execution lock, the state DB remains writable for Pause.
-        with self._inference_turn() as acquired:
+        with self._inference_turn(self.cancellations.get(mission_id)) as acquired:
             with closing(SQLiteStorage(self.database)) as storage:
                 mission = AutonomousMissionService(storage).get(mission_id)
                 if not acquired:
@@ -55,17 +57,19 @@ class StudioRunner:
                     self.active.add(mission_id)
                 try:
                     driver = self.driver_factory(storage, mission_id, workspace=self.workspace)
+                    if isinstance(driver, CoreMissionDriver):
+                        driver.cancel_event = self.cancellations[mission_id]
                     return Supervisor(storage).run(mission.mission_key, driver)
                 finally:
                     with self.guard:
                         self.active.discard(mission_id)
 
     @contextmanager
-    def _inference_turn(self):
+    def _inference_turn(self, cancel_event=None):
         # A second web process can wait through a multi-minute inference. The
         # ordinary ten-second mutation lock must not silently drop its job.
         deadline = time.monotonic() + 3600
-        while not self.stopping.is_set() and time.monotonic() < deadline:
+        while not self.stopping.is_set() and not (cancel_event and cancel_event.is_set()) and time.monotonic() < deadline:
             lock = local_games_lock(str(self.database) + ".studio-inference", timeout=0.25)
             try:
                 lock.__enter__()
@@ -94,4 +98,13 @@ class StudioRunner:
 
     def close(self):
         self.stopping.set()
+        with self.guard:
+            for event in self.cancellations.values(): event.set()
         self.executor.shutdown(wait=False, cancel_futures=True)
+
+    def cancel(self, mission_id):
+        with self.guard:
+            event=self.cancellations.get(mission_id)
+            if event: event.set()
+            future=self.jobs.get(mission_id)
+            if future: future.cancel()

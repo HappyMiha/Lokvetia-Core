@@ -815,6 +815,7 @@ class CoreMissionDriver:
         self._invoker = invoker
         self._capabilities = capabilities
         self._workspace = workspace
+        self.cancel_event = None
 
     def _runtime(self) -> tuple[Any, Mapping[str, Any]]:
         if self._invoker is not None:
@@ -827,7 +828,14 @@ class CoreMissionDriver:
             provider_id: provider.capabilities
             for provider_id, provider in runtime.providers.items()
         }
-        return RuntimePlanningInvoker(runtime), capabilities
+        cancelled = None
+        if self.cancel_event is not None:
+            driver = self
+            class Cancellation:
+                def is_set(self):
+                    return driver.cancel_event.is_set() or Supervisor(driver.storage).mandate(driver.state().mission_key) is None
+            cancelled = Cancellation()
+        return RuntimePlanningInvoker(runtime, cancel_event=cancelled), capabilities
 
     def state(self) -> MissionState:
         from .autonomous_mission import AutonomousMissionService

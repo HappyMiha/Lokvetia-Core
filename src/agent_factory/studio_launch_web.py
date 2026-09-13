@@ -2,7 +2,7 @@
 from contextlib import closing
 from uuid import UUID
 
-from fastapi import HTTPException, Request
+from fastapi import HTTPException, Request, Query
 from pydantic import BaseModel, ConfigDict, Field, StrictBool
 
 from .autonomous_mission import AutonomousMissionService
@@ -32,7 +32,7 @@ def install_routes(app, database, workspace, runner):
     def readiness(lang: str = "uk"):
         try:
             with closing(SQLiteStorage(database)) as storage:
-                checked_local_source(storage, workspace)
+                source = checked_local_source(storage, workspace)
             ready = True
         except (KeyError, ValueError, OSError):
             ready = False
@@ -40,7 +40,52 @@ def install_routes(app, database, workspace, runner):
                            "The local model is qualified. Planning can start.") if ready else
                    Message("Спочатку перевірте локальний воркер і модель Ollama.",
                            "Qualify the local worker and Ollama model first."))
-        return {"can_start": ready, "summary": summary.text(lang)}
+        return {"can_start": ready, "summary": summary.text(lang),
+                "model": source.name if ready else None, "provider":"Ollama", "paid_limit":0}
+
+    @app.get('/api/studio/games')
+    def library(request: Request, lang: str='uk', offset: int=Query(0,ge=0), limit: int=Query(30,ge=1,le=100)):
+        from .studio_progress import games
+        actor = owner(request)
+        with closing(SQLiteStorage(database)) as storage:
+            return games(storage,runner,actor,lang,offset=offset,limit=limit)
+
+    @app.get('/api/studio/games/{mission_id}')
+    def detail(mission_id: int, request: Request, lang: str='uk'):
+        from .studio_progress import game_progress
+        actor = owner(request)
+        try:
+            with closing(SQLiteStorage(database)) as storage:
+                return game_progress(storage,runner,mission_id,actor,lang)
+        except KeyError:
+            raise HTTPException(404,'game_not_found') from None
+
+    @app.get('/api/studio/progress/{mission_key}')
+    def progress(mission_key: str, request: Request, lang: str='uk'):
+        from .studio_progress import game_progress
+        actor=owner(request)
+        with closing(SQLiteStorage(database)) as storage:
+            row=storage.db.execute('SELECT id FROM autonomous_missions WHERE mission_key=? AND mission_owner=?',(mission_key,actor)).fetchone()
+            if not row: raise HTTPException(404,'game_not_found')
+            return game_progress(storage,runner,row['id'],actor,lang)
+
+    @app.post('/api/studio/games/{mission_id}/stop')
+    def stop(mission_id: int, request: Request):
+        from .studio_supervisor import Supervisor
+        actor = owner(request)
+        if request.headers.get('X-Agent-Factory-Confirm') != 'true':
+            raise HTTPException(400,'confirmation_required')
+        with closing(SQLiteStorage(database)) as storage:
+            try:
+                mission = AutonomousMissionService(storage).get(mission_id)
+                if mission.mission_owner != actor: raise KeyError()
+            except KeyError:
+                raise HTTPException(404,'game_not_found') from None
+            supervisor=Supervisor(storage)
+            if supervisor.mandate(mission.mission_key):
+                supervisor.revoke(mission.mission_key,actor=actor)
+        runner.cancel(mission_id)
+        return {'status':runner.status(mission_id)}
 
     @app.post("/api/studio/create", status_code=202)
     def create(request: Request, command: CreateStudioGame):

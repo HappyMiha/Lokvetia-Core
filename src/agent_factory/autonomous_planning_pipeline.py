@@ -110,10 +110,13 @@ class PlanningProviderInvoker(Protocol):
 class RuntimePlanningInvoker:
     """Adapt the standard provider runtime to a non-persisted planning task."""
 
-    def __init__(self, runtime: AgentRuntime):
+    def __init__(self, runtime: AgentRuntime, *, cancel_event=None):
         self.runtime = runtime
+        self.cancel_event = cancel_event
 
     def invoke(self, request: PlanningInvocationRequest) -> ProviderResult:
+        if self.cancel_event is not None and self.cancel_event.is_set():
+            raise PermissionError('Planning cancelled by owner')
         from .planning_output_contracts import guidance
         assignment = request.assignment
         limits = dict(assignment.limits)
@@ -159,6 +162,7 @@ class RuntimePlanningInvoker:
             request.authorization,
             allow_fallback=False,
             mode=ExecutionMode.LIVE,
+            **({'cancel_event':self.cancel_event} if self.cancel_event is not None else {}),
         )
 
 

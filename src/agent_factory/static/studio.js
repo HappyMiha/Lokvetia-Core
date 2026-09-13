@@ -9,6 +9,95 @@
   let createCommand = null;
   let creating = false;
   let pendingLoads = 0;
+  let libraryOffset = 0, selectedGame = null, libraryOwner = null;
+  function dateLabel(value) {
+    const raw=value.includes('T')?value:value.replace(' ','T')+'Z';
+    const date=new Date(raw);return Number.isNaN(date.getTime())?value:date.toLocaleString(state.language==='uk'?'uk-UA':'en-GB');
+  }
+
+  function selectGame(key) {
+    byId('mission').value=key;state.mission=key;
+    if(libraryOwner)try{sessionStorage.setItem('studio-selection:'+libraryOwner,key);}catch{}
+    const url=new URL(location.href);url.searchParams.set('mission',key);
+    history.replaceState(null,'',url);
+    for(const link of document.querySelectorAll('[data-lang]')) {
+      const target=new URL(url);target.searchParams.set('lang',link.dataset.lang);link.href=target.href;
+    }
+  }
+
+  function renderProgress(game) {
+    selectGame(game.mission_key);
+    selectedGame=game;byId('planning-progress').hidden=false;
+    byId('planning-title').textContent=game.title;
+    byId('planning-status').textContent=game.summary;
+    byId('planning-model').textContent=say('studio.progress.model',{model:game.model,provider:game.provider});
+    byId('planning-cost').textContent=say(game.local_only?'studio.progress.local':'studio.progress.cost_unknown');
+    byId('planning-updated').textContent=say('studio.progress.updated',{time:dateLabel(game.updated_at)});
+    byId('planning-meter').max=game.total_steps;byId('planning-meter').value=game.completed_steps;
+    byId('planning-count').textContent=say('studio.progress.count',{done:game.completed_steps,total:game.total_steps});
+    replace(byId('planning-steps'),game.steps.map(step=>{
+      const row=element('li');row.className=step.state;
+      const label=step.state==='done'?say('studio.progress.done'):step.state==='failed'?say('studio.progress.invalid'):step.state==='running'?say('studio.progress.attempt',{attempt:step.active_attempt,max:game.max_attempts}):say('studio.progress.pending');
+      row.append(element('strong',step.name),element('span',` — ${label}`));
+      if(step.model!==game.model)row.append(element('small',` · ${step.model}`));return row;
+    }));
+    byId('planning-explanation').textContent=game.state==='failed'?say('studio.progress.failed',{role:game.failure_role||game.last_detail||game.summary}):game.state==='interrupted'?say('studio.progress.interrupted'):game.state==='cancelled'?say('studio.progress.stopped'):game.state==='stopping'?say('studio.progress.stopping'):game.background?say('studio.progress.running'):game.last_detail;
+    byId('planning-stop').hidden=!game.can_stop;
+    byId('planning-idea').textContent=game.idea;
+    byId('planning-failure').hidden=!game.failure_details?.length;
+    replace(byId('planning-errors'),(game.failure_details||[]).map(error=>element('li',error)));
+    const opened=new Set(Array.from(byId('planning-artifacts').querySelectorAll('details[open]')).map(node=>node.dataset.artifact));
+    replace(byId('planning-artifacts'),game.artifacts.map(artifact=>{
+      const details=element('details');details.dataset.artifact=String(artifact.id);details.open=opened.has(String(artifact.id));
+      details.append(element('summary',artifact.title),resultContent(artifact.content));return details;
+    }));
+    if(!game.artifacts.length)byId('planning-artifacts').append(element('p',say('studio.progress.none')));
+  }
+
+  function resultContent(value) {
+    if(value===null||typeof value!=='object')return element('p',String(value??''),'preserve-lines');
+    const container=element(Array.isArray(value)?'ol':'div');
+    for(const [key,content] of Object.entries(value)) {
+      const item=element(Array.isArray(value)?'li':'section');
+      if(!Array.isArray(value))item.append(element('strong',key.replaceAll('_',' ')));
+      item.append(resultContent(content));container.append(item);
+    }
+    return container;
+  }
+
+  async function loadLibrary(generation) {
+    try {
+      const data=await get(`/api/studio/games?offset=${libraryOffset}&limit=6`);
+      if(generation!==state.generation)return;
+      libraryOwner=data.owner||null;
+      if(!query.get('mission')&&!selectedGame&&byId('mission').value==='cat-coins'&&data.items.length){
+        let previous=null;try{previous=sessionStorage.getItem('studio-selection:'+libraryOwner);}catch{}
+        selectGame(previous||data.items[0].mission_key);
+      }
+      const focusedGame=document.activeElement?.dataset.game;
+      replace(byId('game-library'),data.items.map(game=>{
+        const button=element('button');button.type='button';button.dataset.game=game.mission_key;
+        button.setAttribute('aria-pressed',String(game.mission_key===byId('mission').value));
+        button.append(element('strong',game.title),element('span',`${game.summary} · ${game.completed_steps}/${game.total_steps}`),element('small',dateLabel(game.created_at)));
+        button.onclick=()=>{selectGame(game.mission_key);load();};return button;
+      }));
+      if(focusedGame)Array.from(byId('game-library').querySelectorAll('button')).find(button=>button.dataset.game===focusedGame)?.focus({preventScroll:true});
+      if(!data.items.length)byId('game-library').append(element('p',say('studio.library.empty')));
+      byId('games-count').textContent=data.total?`${libraryOffset+1}–${Math.min(libraryOffset+6,data.total)} / ${data.total}`:'';
+      byId('games-previous').hidden=libraryOffset===0;byId('games-more').hidden=libraryOffset+6>=data.total;
+      if(byId('mission').value&&byId('mission').value!=='cat-coins') {
+        const game=await get(`/api/studio/progress/${encodeURIComponent(byId('mission').value)}`);
+        if(generation!==state.generation)return;
+        renderProgress(game);
+      }
+      byId('library-error').textContent='';
+    } catch(error) {
+      if(generation!==state.generation)return;
+      byId('library-error').textContent=say('studio.error',{message:error.message});
+      byId('planning-status').textContent=say('studio.error',{message:error.message});
+      byId('planning-stop').hidden=true;
+    }
+  }
 
   // Every visible string comes from the server's catalogue, so a missing
   // translation shows up as a missing key rather than as silent Ukrainian.
@@ -62,6 +151,11 @@
   async function get(url) {
     const response = await fetch(withLanguage(url), {cache: 'no-store'});
     const payload = await readJson(response);
+    if(response.status===401||response.status===403) {
+      selectedGame=null;libraryOwner=null;byId('game-library').replaceChildren();byId('planning-progress').hidden=true;
+      byId('game-title').value='';byId('game-idea').value='';
+      throw new Error(say('studio.progress.access'));
+    }
     if (!response.ok || payload.error) {
       const error = new Error(payload.error ? payload.error.message : `HTTP ${response.status}`);
       error.code = payload.error ? payload.error.code : 'http_error';
@@ -346,6 +440,9 @@
     const generation = ++state.generation;
     pendingLoads += 1;
     try {
+      await loadLibrary(generation);
+      if(generation!==state.generation)return;
+      state.mission=byId('mission').value.trim()||state.mission;
       const [first, local, plan, decisions, tools, money, roster, cycles, machines, run] =
         await Promise.all([
           get('/api/studio/first-run'),
@@ -364,7 +461,7 @@
       byId('start-blocked').hidden = Boolean(first.can_start);
       byId('create-game').disabled = creating || !local.can_start;
       byId('create-game').title = local.summary;
-      byId('create-readiness').textContent = local.summary;
+      byId('create-readiness').textContent = local.model?say('studio.create.selected',{model:local.model}):local.summary;
       showPlan(plan);
       showQuestions(decisions, tools, money);
       showMoney(money);
@@ -372,7 +469,7 @@
       showLoop(cycles);
       showMachines(machines);
       showRun(run);
-      byId('summary').textContent = first.can_start
+      byId('summary').textContent = selectedGame ? `${selectedGame.title} · ${selectedGame.summary}` : first.can_start
         ? (plan.next || say('studio.plan.empty'))
         : first.summary;
     } catch (error) {
@@ -454,26 +551,39 @@
   }
 
   function start() {
-    if (query.get('mission')) byId('mission').value = query.get('mission');
+    if (query.get('mission')) selectGame(query.get('mission'));
+    byId('games-previous').onclick=()=>{libraryOffset=Math.max(0,libraryOffset-6);load();};
+    byId('games-more').onclick=()=>{libraryOffset+=6;load();};
+    byId('planning-stop').onclick=async()=>{
+      const game=selectedGame;if(!game)return;
+      byId('planning-stop').disabled=true;
+      try{await post(`/api/studio/games/${game.mission_id}/stop`,{});await load();}
+      catch(error){byId('planning-status').textContent=say('studio.error',{message:error.message});}
+      finally{byId('planning-stop').disabled=false;}
+    };
     byId('create-form').addEventListener('submit', async event => {
       event.preventDefault();
       if (creating || byId('create-game').disabled) return;
       creating = true;
       byId('create-game').disabled = true;
+      byId('game-title').disabled=true;byId('game-idea').disabled=true;
       createCommand = createCommand || crypto.randomUUID();
       try {
         const answer = await post('/api/studio/create', {
           command_id: createCommand, title: byId('game-title').value.trim(),
           idea: byId('game-idea').value.trim(),
         });
-        byId('mission').value = answer.mission_key;
+        selectGame(answer.mission_key);libraryOffset=0;
+        byId('game-title').value='';byId('game-idea').value='';
         byId('create-result').textContent = say('studio.create.queued');
         createCommand = null;
         await load();
+        byId('planning-progress').scrollIntoView({block:'start',behavior:'smooth'});
       } catch (error) {
         byId('create-result').textContent = say('studio.error', {message: error.message});
       } finally {
         creating = false;
+        byId('game-title').disabled=false;byId('game-idea').disabled=false;
         await load();
       }
     });
@@ -483,6 +593,7 @@
     byId('refresh').addEventListener('click', () => load());
     byId('mission').addEventListener('change', () => {
       state.offering = null;
+      selectGame(byId('mission').value.trim());
       load();
     });
     byId('pause').addEventListener('click', () => act('pause'));

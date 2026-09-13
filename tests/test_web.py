@@ -290,6 +290,7 @@ class WebHostTests(unittest.TestCase):
                     mutation_routes,
                     {
                         "/api/ai-setup",
+                        "/api/studio/games/{mission_id}/stop",
                         "/api/credential-connections",
                         "/api/settings/values/{key}",
                         "/api/settings/values/{key}/reset",

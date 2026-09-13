@@ -25,6 +25,23 @@
       </nav>
     </section>
 
+    <section class="card" aria-labelledby="library-title">
+      <h2 id="library-title" data-i18n="studio.library.title">Мої ігри</h2>
+      <p data-i18n="studio.library.help">Ідеї, результати й поточне планування зберігаються тут. Вихід зі сторінки не зупиняє роботу.</p>
+      <div id="game-library" aria-live="polite"></div>
+      <div class="loop-actions"><button id="games-previous" type="button" hidden>←</button><span id="games-count"></span><button id="games-more" type="button" hidden>→</button></div>
+      <p id="library-error" role="status"></p>
+    </section>
+    <section id="planning-progress" class="card" hidden aria-labelledby="planning-title">
+      <h2 id="planning-title"></h2><p id="planning-status" role="status" aria-live="polite"></p>
+      <p id="planning-model"></p><p id="planning-cost"></p><p id="planning-updated"></p>
+      <progress id="planning-meter" max="5" value="0"></progress><p id="planning-count"></p>
+      <ol id="planning-steps"></ol><p id="planning-explanation"></p>
+      <details id="planning-failure" hidden><summary data-i18n="studio.progress.reason">Чому зупинилося</summary><ul id="planning-errors"></ul></details>
+      <button id="planning-stop" type="button" hidden data-i18n="studio.progress.stop">Зупинити планування</button>
+      <details><summary data-i18n="studio.progress.idea">Початкова ідея</summary><p id="planning-idea" class="preserve-lines"></p></details>
+      <h3 data-i18n="studio.progress.results">Збережені результати</h3><div id="planning-artifacts"></div>
+    </section>
     <section class="card" aria-labelledby="create-title">
       <h2 id="create-title" data-i18n="studio.create.title">Почати нову гру</h2>
       <p data-i18n="studio.create.scope">Локальна модель складе план. Автоматична розробка й збірка ще не підключені.</p>
@@ -36,7 +53,7 @@
         <p data-i18n="studio.create.consent">Кнопка запускає планування локально з нульовим лімітом платних запитів.</p>
         <p id="create-readiness" role="status" aria-live="polite"></p>
         <button id="create-game" type="submit" disabled aria-describedby="create-readiness" data-i18n="studio.create.start">Почати планування</button>
-        <a href="/settings/credentials" data-i18n="studio.create.setup">Підключення провайдерів</a>
+        <a href="/connect" data-i18n="studio.create.setup">Підключення провайдерів</a>
         <p id="create-result" role="status" aria-live="polite"></p>
       </form>
     </section>

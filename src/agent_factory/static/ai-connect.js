@@ -24,6 +24,7 @@ function cards() {
     const button=text('button',needsKey?'Ввести ключ':connected?'Перевірити знову':'Підключити');button.type='button';button.dataset.provider=item.id;button.disabled=starting||ongoing(active);
     button.onclick=()=>{if(needsKey){show(item.job);$('gemini-key').focus();}else start(item.id);};
     card.append(top,text('h2',item.title),text('p',descriptions[item.id]),button);
+    if(item.connection?.model){const model=text('p',`${item.id==='ollama'?'Ollama · ':''}${item.connection.model}`,'model-name');card.insertBefore(model,button);}
     if(connected){const remove=text('button','Відключити','quiet disconnect');remove.type='button';remove.disabled=ongoing(active)||starting;remove.onclick=async()=>{try{await api(`/api/ai-setup/connections/${item.id}`,{method:'DELETE',headers:{'X-Agent-Factory-Confirm':'true'}});active=null;$('journey').hidden=true;await refresh();}catch(error){$('notice').textContent=error.message;}};card.append(remove);}
     $('providers').append(card);
   }

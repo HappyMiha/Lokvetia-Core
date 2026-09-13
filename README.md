@@ -38,6 +38,8 @@ The local interface opens at `http://127.0.0.1:8765`. For the offline demonstrat
 
 Connect Codex CLI, Gemini CLI or a local model through **Settings → AI access** (`/connect`): choose an AI and complete login only when needed. See the [simple connection journey / Підключення AI](docs/ai-connect.md).
 
+The [studio planning panel](docs/studio-planning-progress.md) keeps your games, model identity, progress and partial results visible when you leave and return; it also lets you stop an active planning request.
+
 ## Product family and scope
 
 > **Planning update — 5 September 2026:** there are two projects. This repository remains the public, Apache-2.0 **Core**. [Lokiravia](https://github.com/HappyMiha/AgentFactory-Cloud) is a separate public repository for the commercial product plan: creating, playing, remixing, and publishing games. No Cloud application or game pipeline is claimed as delivered by this update.
