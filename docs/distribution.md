@@ -56,12 +56,11 @@ module deliberately does not invent a key of its own.
 
 ## What is not claimed
 
-- **No native installer.** There is no `.msi`, `.pkg` or `.deb` here — what
+- **Windows desktop preview is separate.** See [desktop installation](desktop-installation.en.md) for the standalone exe and download page. There is no `.msi`, `.pkg` or `.deb` here — what
   exists is a wheel, a source archive, a manifest, and a check. Producing and
   signing native installers needs signing identities this repository does not
   have.
-- **No download page.** Publishing the files somewhere a person can click is
-  separate work; what is here is what such a page would have to serve.
+- **Desktop download page:** `/downloads` serves the separately published desktop manifest. The wheel/source manifest described here remains available for technical installations.
 - **The install check proves installation, not use.** It installs the wheel and
   runs `lokvetia --version` on the build machine. That is a real check, and it
   is all it is.

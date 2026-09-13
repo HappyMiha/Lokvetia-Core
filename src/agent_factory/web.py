@@ -497,6 +497,8 @@ def create_app(workspace: Path, database: Path, *, environment_probes=None, cred
 
     app.add_middleware(LocalHTTPBoundary, access=access)
     install_sso_routes(app, access)
+    from .desktop_downloads import install_download_routes
+    install_download_routes(app)
     install_credential_routes(app, workspace, store=credential_store)
     install_hardware_routes(app, workspace)
     install_game_planning_routes(app, database)
@@ -509,6 +511,7 @@ def create_app(workspace: Path, database: Path, *, environment_probes=None, cred
         principal = request.state.local_principal
         return {"authentication_required": bool(request.state.local_policy.token),
                 "authenticated": principal is not None,
+                "workspace_access": bool(principal and principal.role != 'account_user'),
                 "actor": principal.actor if principal else None}
 
     @app.post("/auth/session", include_in_schema=False)

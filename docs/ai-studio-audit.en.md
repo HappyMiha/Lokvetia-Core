@@ -4,7 +4,7 @@
 <details>
 <summary>Translation source and currency</summary>
 
-Translation source: [ai-studio-audit.uk.md](ai-studio-audit.uk.md). Source SHA-256 (UTF-8/LF): `f4b1d09edd7f404d8d35184b327666555071743be35b7520250a910186b1e6ef`.
+Translation source: [ai-studio-audit.uk.md](ai-studio-audit.uk.md). Source SHA-256 (UTF-8/LF): `35381a33e1a76bf795eb3d743a8ae8920c59670676a82041dccdf8ffc23e11e2`.
 
 </details>
 <!-- translation-metadata:end -->
@@ -102,3 +102,7 @@ ports; `-CorePort` and `-CreatorPort` select alternatives.
 The next critical connection is a real executor after verified planning, bound
 to a separate mission repository and Godot evidence. Until then, completing
 planning must not be described as completing game creation.
+
+## Follow-up: installation on another PC
+
+Added personal registration isolated from the operator workspace, a download page and a standalone Windows exe including Python. The original two branding failures are fixed. See the [installation guide](desktop-installation.en.md) for the current flow and limits. This does not close the remaining autonomous game creation requirements.

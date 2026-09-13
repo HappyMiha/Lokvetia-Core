@@ -48,7 +48,7 @@ class PublicationTests(unittest.TestCase):
 
 
 class GatewayTests(unittest.TestCase):
-    def check_route(self, path, authenticated=True, auth_status=200):
+    def check_route(self, path, authenticated=True, auth_status=200, workspace_access=True):
         with tempfile.TemporaryDirectory() as folder:
             root = Path(folder)
             (root / "routes.json").write_text(json.dumps({"test.lokvetia.com": {"container": "test-core"}}))
@@ -56,7 +56,7 @@ class GatewayTests(unittest.TestCase):
             (root / "progress.json").write_text(json.dumps({"projects": [], "private_test_marker": True}))
             def auth(request):
                 self.assertEqual(request.url.path, "/auth/session")
-                return httpx.Response(auth_status, json={"authenticated": authenticated})
+                return httpx.Response(auth_status, json={"authenticated": authenticated, "workspace_access": workspace_access})
             with patch.object(gateway, "state", root), \
                     patch.object(gateway.httpx, "AsyncClient", return_value=httpx.AsyncClient(transport=httpx.MockTransport(auth))), \
                     TestClient(gateway.app, base_url="http://test.lokvetia.com", follow_redirects=False) as client:
@@ -66,6 +66,11 @@ class GatewayTests(unittest.TestCase):
         response = self.check_route("/progress/status", authenticated=False)
         self.assertEqual(response.status_code, 401)
         self.assertNotIn("private_test_marker", response.text)
+
+    def test_personal_account_cannot_read_operator_report(self):
+        response = self.check_route('/progress/status', workspace_access=False)
+        self.assertEqual(response.status_code, 401)
+        self.assertNotIn('private_test_marker', response.text)
 
     def test_guest_page_redirects_to_sign_in(self):
         response = self.check_route("/progress", authenticated=False)
