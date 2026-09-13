@@ -8,6 +8,22 @@ $ErrorActionPreference = 'Stop'
 $server = (Resolve-Path -LiteralPath $ServerRoot).Path
 $root = Join-Path $server 'autodeploy'
 $source = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot '../..')).Path
+$taskName = 'Lokvetia-Test-Autodeploy'
+# A controller that is already running holds the very files this script replaces,
+# and it would keep running the old ones afterwards, because a re-registered task
+# ignores a second start. Stop it first. An interrupted rollout is recovered on
+# the next start: routing returns to the previous release and the attempt is
+# recorded as a failure, so no half-activated release is left behind.
+$wasRunning = $null -ne (Get-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue)
+if ($wasRunning) {
+    Stop-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue
+    $deadline = (Get-Date).AddMinutes(3)
+    while ((Get-ScheduledTask -TaskName $taskName).State -eq 'Running' -and (Get-Date) -lt $deadline) { Start-Sleep -Seconds 2 }
+    if ((Get-ScheduledTask -TaskName $taskName).State -eq 'Running') {
+        throw 'The autodeploy controller did not stop; end it before re-installing so it cannot keep running replaced files'
+    }
+    Write-Output 'Stopped the running controller before replacing the files it runs from.'
+}
 foreach ($folder in @($root, "$root/runtime", "$root/runtime/progress/scripts", "$root/runtime/progress/src/agent_factory", "$root/public", "$root/secrets")) {
     New-Item -ItemType Directory -Path $folder -Force | Out-Null
 }
@@ -21,6 +37,14 @@ foreach ($name in @('__init__.py','backlog.py','progress.py')) {
 foreach ($name in @('serve.py','domain_adapter.py','snapshot.py','gateway.py','Dockerfile.core','Dockerfile.cloud')) {
     Copy-Item -LiteralPath (Join-Path $PSScriptRoot $name) -Destination "$root/runtime/$name"
 }
+# Which checkout these copies came from. The controller republishes it, so a
+# machine that was never re-installed says so on the deployment page instead of
+# failing later with a message that reads like a fault in the release.
+$revision = ''
+try { $revision = (& git -C $source rev-parse HEAD 2>$null) } catch { $revision = '' }
+if ($LASTEXITCODE -ne 0) { $revision = '' }
+$installed = @{revision=("$revision").Trim();installed_at=(Get-Date).ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ssZ');source=$source}
+[IO.File]::WriteAllText("$root/installed.json", ($installed | ConvertTo-Json -Depth 3), [Text.UTF8Encoding]::new($false))
 function Write-PrivateSecret([string]$Path) {
     if (-not (Test-Path -LiteralPath $Path)) {
         $bytes = New-Object byte[] 48
@@ -40,31 +64,71 @@ if (-not (Test-Path -LiteralPath "$root/secrets/clients.json")) {
     }
     [IO.File]::WriteAllText("$root/secrets/clients.json", ($clients | ConvertTo-Json -Depth 5), [Text.UTF8Encoding]::new($false))
 }
-if (-not (Test-Path -LiteralPath "$root/config.json")) {
-    # The application runs in a container here, and says so in every report:
-    # a hardware scan from this process describes the container, not a user's PC.
-    $common = @{LOKVETIA_IDENTITY_ORIGIN='https://id.lokvetia.com';LOKVETIA_IDENTITY_INTERNAL='http://lokvetia-deploy-gateway:8080';LOKVETIA_ORGANIZATION='lokvetia';LOKVETIA_SSO_SECRET_FILE='/run/secrets/sso_client';LOKVETIA_MACHINE_KIND='web_container';LOKVETIA_MACHINE_NAME='test.lokvetia.com'}
-    $coreEnv = $common.Clone(); $coreEnv.LOKVETIA_SSO_CLIENT='core'; $coreEnv.LOKVETIA_SSO_ORIGIN='https://test.lokvetia.com'
-    $cloudEnv = $common.Clone(); $cloudEnv.LOKVETIA_SSO_CLIENT='cloud'; $cloudEnv.LOKVETIA_SSO_ORIGIN='https://test.lokiravia.com'
-    $config = @{
-        state_root=$root;runtime_bundle="$root/runtime";network='lokvetia-test_default';poll_seconds=60;max_retained_containers_per_project=8;keep_releases=2
-        progress=@{projects=@(
-            @{id='core';name='Lokvetia Core';repository='HappyMiha/Lokvetia-Core';manifests=@('examples/development-backlog.json','examples/game-creator-backlog.json','examples/autonomous-mission-backlog.json','docs/evolution/backlog.json')},
-            @{id='cloud';name='Lokiravia';repository='HappyMiha/Lokiravia';manifests=@('examples/agentfactory-cloud-backlog.json','docs/evolution/backlog.json')}
-        )}
-        initial_routes=@{
-            'test.lokvetia.com'=@{container='lokvetia-test-lokvetia-1';sha='e74cb1a';project='core'}
-            'test.lokiravia.com'=@{container='lokvetia-test-lokiravia-1';sha='ff76420';project='cloud'}
-        }
-        projects=@(
-            @{id='identity';name='Lokvetia Account';repository='HappyMiha/Lokvetia-Core';service='identity';host='id.lokvetia.com';volume='lokvetia-identity-data';access_token_file="$root/secrets/identity-token.txt";environment=@{AGENT_FACTORY_API_ACTOR='HappyDucky02-test';LOKVETIA_ORGANIZATION='lokvetia'};secret_mounts=@(@{source="$root/secrets/clients.json";target='/run/secrets/identity_clients'})},
-            @{id='core';name='Lokvetia Core';repository='HappyMiha/Lokvetia-Core';service='lokvetia';host='test.lokvetia.com';volume='lokvetia-test_lokvetia-data';access_token_file="$server/secrets/lokvetia-token.txt";environment=$coreEnv;secret_mounts=@(@{source="$root/secrets/core-sso.txt";target='/run/secrets/sso_client'})},
-            @{id='cloud';name='Lokiravia';repository='HappyMiha/Lokiravia';service='lokiravia';host='test.lokiravia.com';volume='lokvetia-test_lokiravia-data';access_token_file="$server/secrets/lokiravia-token.txt";environment=$cloudEnv;secret_mounts=@(@{source="$root/secrets/cloud-sso.txt";target='/run/secrets/sso_client'})}
-        )
+# The configuration is built on every run, but an existing file belongs to the
+# operator: only keys it does not have are added to it. That way a setting
+# somebody changed on purpose survives a re-install, while a key a newer release
+# needs still arrives without anyone editing JSON by hand.
+# The application runs in a container here, and says so in every report:
+# a hardware scan from this process describes the container, not a user's PC.
+$common = @{LOKVETIA_IDENTITY_ORIGIN='https://id.lokvetia.com';LOKVETIA_IDENTITY_INTERNAL='http://lokvetia-deploy-gateway:8080';LOKVETIA_ORGANIZATION='lokvetia';LOKVETIA_SSO_SECRET_FILE='/run/secrets/sso_client';LOKVETIA_MACHINE_KIND='web_container'}
+# Each deployment signs its reports with its own host, never the other one's.
+$coreEnv = $common.Clone(); $coreEnv.LOKVETIA_SSO_CLIENT='core'; $coreEnv.LOKVETIA_SSO_ORIGIN='https://test.lokvetia.com'; $coreEnv.LOKVETIA_MACHINE_NAME='test.lokvetia.com'
+$cloudEnv = $common.Clone(); $cloudEnv.LOKVETIA_SSO_CLIENT='cloud'; $cloudEnv.LOKVETIA_SSO_ORIGIN='https://test.lokiravia.com'; $cloudEnv.LOKVETIA_MACHINE_NAME='test.lokiravia.com'
+$config = @{
+    state_root=$root;runtime_bundle="$root/runtime";network='lokvetia-test_default';poll_seconds=60;max_retained_containers_per_project=8;keep_releases=2
+    progress=@{projects=@(
+        @{id='core';name='Lokvetia Core';repository='HappyMiha/Lokvetia-Core';manifests=@('examples/development-backlog.json','examples/game-creator-backlog.json','examples/autonomous-mission-backlog.json','docs/evolution/backlog.json')},
+        @{id='cloud';name='Lokiravia';repository='HappyMiha/Lokiravia';manifests=@('examples/agentfactory-cloud-backlog.json','docs/evolution/backlog.json')}
+    )}
+    initial_routes=@{
+        'test.lokvetia.com'=@{container='lokvetia-test-lokvetia-1';sha='e74cb1a';project='core'}
+        'test.lokiravia.com'=@{container='lokvetia-test-lokiravia-1';sha='ff76420';project='cloud'}
     }
-    [IO.File]::WriteAllText("$root/config.json", ($config | ConvertTo-Json -Depth 8), [Text.UTF8Encoding]::new($false))
+    projects=@(
+        @{id='identity';name='Lokvetia Account';repository='HappyMiha/Lokvetia-Core';service='identity';host='id.lokvetia.com';volume='lokvetia-identity-data';access_token_file="$root/secrets/identity-token.txt";environment=@{AGENT_FACTORY_API_ACTOR='HappyDucky02-test';LOKVETIA_ORGANIZATION='lokvetia'};secret_mounts=@(@{source="$root/secrets/clients.json";target='/run/secrets/identity_clients'})},
+        @{id='core';name='Lokvetia Core';repository='HappyMiha/Lokvetia-Core';service='lokvetia';host='test.lokvetia.com';volume='lokvetia-test_lokvetia-data';access_token_file="$server/secrets/lokvetia-token.txt";environment=$coreEnv;secret_mounts=@(@{source="$root/secrets/core-sso.txt";target='/run/secrets/sso_client'})},
+        @{id='cloud';name='Lokiravia';repository='HappyMiha/Lokiravia';service='lokiravia';host='test.lokiravia.com';volume='lokvetia-test_lokiravia-data';access_token_file="$server/secrets/lokiravia-token.txt";environment=$cloudEnv;secret_mounts=@(@{source="$root/secrets/cloud-sso.txt";target='/run/secrets/sso_client'})}
+    )
 }
-if ($ConfigureOnly) { Write-Output 'Private configuration created. No application was restarted.'; exit 0 }
+$configPath = "$root/config.json"
+if (-not (Test-Path -LiteralPath $configPath)) {
+    [IO.File]::WriteAllText($configPath, ($config | ConvertTo-Json -Depth 8), [Text.UTF8Encoding]::new($false))
+    Write-Output 'Wrote a new controller configuration.'
+} else {
+    $existing = [IO.File]::ReadAllText($configPath) | ConvertFrom-Json
+    $added = New-Object 'System.Collections.Generic.List[string]'
+    foreach ($name in @('state_root','runtime_bundle','network','poll_seconds','max_retained_containers_per_project','keep_releases')) {
+        if ($null -eq $existing.PSObject.Properties[$name]) {
+            $existing | Add-Member -NotePropertyName $name -NotePropertyValue $config[$name]
+            $added.Add($name)
+        }
+    }
+    foreach ($project in @($existing.projects)) {
+        $wanted = @($config.projects | Where-Object { $_.id -eq $project.id })[0]
+        if ($null -eq $wanted -or $null -eq $wanted.environment) { continue }
+        if ($null -eq $project.PSObject.Properties['environment']) {
+            $project | Add-Member -NotePropertyName 'environment' -NotePropertyValue ([PSCustomObject]@{})
+        }
+        foreach ($key in @($wanted.environment.Keys)) {
+            if ($null -eq $project.environment.PSObject.Properties[$key]) {
+                $project.environment | Add-Member -NotePropertyName $key -NotePropertyValue $wanted.environment[$key]
+                $added.Add("$($project.id).$key")
+            }
+        }
+    }
+    if ($added.Count -gt 0) {
+        Copy-Item -LiteralPath $configPath -Destination "$configPath.previous" -Force
+        [IO.File]::WriteAllText($configPath, ($existing | ConvertTo-Json -Depth 8), [Text.UTF8Encoding]::new($false))
+        Write-Output ('Added to the existing configuration (the previous file is kept beside it): ' + ($added -join ', '))
+    } else {
+        Write-Output 'The existing configuration already carries every key this release needs.'
+    }
+}
+if ($ConfigureOnly) {
+    if ($wasRunning) { Start-ScheduledTask -TaskName $taskName }
+    Write-Output 'Configuration and controller files refreshed. No application container was restarted.'
+    exit 0
+}
 & docker volume inspect lokvetia-identity-data *> $null
 if ($LASTEXITCODE -ne 0) {
     & docker volume create lokvetia-identity-data | Out-Null
@@ -91,6 +155,6 @@ exit `$LASTEXITCODE
 $action = New-ScheduledTaskAction -Execute 'powershell.exe' -Argument "-NoProfile -NonInteractive -WindowStyle Hidden -File `"$root/Run-Controller.ps1`"" -WorkingDirectory $root
 $trigger = New-ScheduledTaskTrigger -AtLogOn -User $user
 $settings = New-ScheduledTaskSettingsSet -MultipleInstances IgnoreNew -RestartCount 3 -RestartInterval (New-TimeSpan -Minutes 1) -ExecutionTimeLimit ([TimeSpan]::Zero) -StartWhenAvailable
-Register-ScheduledTask -TaskName 'Lokvetia-Test-Autodeploy' -Action $action -Trigger $trigger -Settings $settings -User $user -RunLevel Limited -Force | Out-Null
-Start-ScheduledTask -TaskName 'Lokvetia-Test-Autodeploy'
-Write-Output 'Autodeploy controller scheduled for the Docker Desktop owner. Applications and workers were not restarted.'
+Register-ScheduledTask -TaskName $taskName -Action $action -Trigger $trigger -Settings $settings -User $user -RunLevel Limited -Force | Out-Null
+Start-ScheduledTask -TaskName $taskName
+Write-Output ("Autodeploy controller running from " + $(if ($installed.revision) { $installed.revision.Substring(0, [Math]::Min(12, $installed.revision.Length)) } else { 'an unrecorded revision' }) + ". Applications and workers were not restarted.")

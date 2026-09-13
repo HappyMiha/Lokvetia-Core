@@ -3,6 +3,7 @@
 from contextlib import contextmanager
 from datetime import datetime, timezone
 import argparse
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -98,6 +99,48 @@ def compatible(before, after):
             return False
     return True
 
+# What Install.ps1 copies out of a checkout, and where each copy lands. The
+# controller runs from these copies, so a checkout can move past them without
+# anything on the machine changing. Keep this in step with Install.ps1.
+INSTALLED_FROM = {
+    'scripts/autodeploy.py': 'controller.py',
+    'ops/test-deploy/snapshot.py': 'runtime/snapshot.py',
+    'ops/test-deploy/serve.py': 'runtime/serve.py',
+    'ops/test-deploy/gateway.py': 'runtime/gateway.py',
+    'ops/test-deploy/domain_adapter.py': 'runtime/domain_adapter.py',
+    'ops/test-deploy/Dockerfile.core': 'runtime/Dockerfile.core',
+    'ops/test-deploy/Dockerfile.cloud': 'runtime/Dockerfile.cloud',
+}
+
+def file_digest(path):
+    """The content of a file, or '' when there is none. Line endings are normalised
+    so a checkout on Windows does not read as different from the copy beside it."""
+    try:
+        return hashlib.sha256(path.read_bytes().replace(b'\r\n', b'\n')).hexdigest()
+    except OSError:
+        return ''
+
+def behind_checkout(root, checkout):
+    """Name the controller files this revision has moved past.
+
+    The controller deploys whatever is on main, but it runs the copies made when
+    it was last installed. Comparing the two is the only way a person can see
+    that the machine is older than the code it is rolling out, instead of reading
+    a failure message that describes a fault in the release.
+    """
+    behind = []
+    for source, installed in sorted(INSTALLED_FROM.items()):
+        wanted = checkout / source
+        if not wanted.is_file():
+            continue
+        if file_digest(wanted) != file_digest(root / installed):
+            behind.append(source)
+    return behind
+
+STALE_CONTROLLER = ('The deployment controller on this machine is older than the revision it is'
+                    ' rolling out ({files}); re-run ops/test-deploy/Install.ps1 from this revision'
+                    ' before reading the failure above as a fault in the release')
+
 def release_image(p, attempt):
     repository = 'lokiravia' if p['service'] == 'lokiravia' else 'lokvetia-core'
     return repository + ':release-' + p['id'] + '-' + attempt
@@ -139,6 +182,12 @@ class Controller:
         self.status = read_json(self.status_path, {'projects': {}, 'updated_at': now()})
         # Older published state predates the release history.
         self.status.setdefault('history', {})
+        # An installation that predates this record says so rather than guessing
+        # a revision: an unknown installed revision is still worth publishing.
+        installed = read_json(self.root / 'installed.json', {})
+        self.status['controller'] = dict(revision=str(installed.get('revision', '')),
+                                         installed_at=str(installed.get('installed_at', '')),
+                                         behind=[])
         for p in config['projects']:
             if p['repository'] not in {'HappyMiha/Lokvetia-Core', 'HappyMiha/Lokiravia'}:
                 raise DeployError('Unapproved repository')
@@ -146,6 +195,23 @@ class Controller:
                 raise DeployError('Invalid project configuration')
         if not self.routes_path.exists():
             atomic_json(self.routes_path, config.get('initial_routes', {}))
+
+    def note_controller(self, checkout):
+        """Publish which controller files this revision has moved past.
+
+        Recorded before a rollout is attempted, so the answer is on the page
+        whether the rollout then succeeds or fails.
+        """
+        try:
+            behind = behind_checkout(self.root, checkout)
+        except OSError:
+            return
+        self.status['controller']['behind'] = behind
+        atomic_json(self.status_path, self.status)
+
+    def stale_note(self):
+        behind = self.status.get('controller', {}).get('behind') or []
+        return STALE_CONTROLLER.format(files=', '.join(behind)) if behind else ''
 
     def report(self, p, phase, state='in_progress', **extra):
         record = self.status['projects'].setdefault(p['id'], {})
@@ -323,6 +389,7 @@ class Controller:
                 self.rollback_route(p, record['previous_route'])
             self.report(p, 'failure', 'failure', error='Interrupted rollout recovered; previous routing and live data retained')
         sha, checkout = self.checkout(p)
+        self.note_controller(checkout)
         previous = read_json(self.routes_path).get(p['host'])
         if previous and previous.get('sha') == sha:
             return
@@ -334,7 +401,9 @@ class Controller:
         self.retire(p, self.protected(p))
         managed = command(['docker', 'ps', '-a', '--filter', 'label=lokvetia.deploy.project=' + p['id'], '--format', '{{.Names}}']).splitlines()
         if len(managed) >= self.config.get('max_retained_containers_per_project', 8):
-            self.report(p, 'capacity', 'failure', commit=sha, error='Retained-release limit reached; confirm old jobs finished before retiring containers')
+            self.report(p, 'capacity', 'failure', commit=sha, error=' | '.join(part for part in (
+                'Retained-release limit reached; confirm old jobs finished before retiring containers',
+                self.stale_note()) if part))
             return
         if shutil.disk_usage(self.root).free < 2 * 1024**3:
             raise DeployError('Insufficient backup/build disk space')
@@ -414,7 +483,8 @@ class Controller:
                 except Exception as rollback_error:
                     rollback = 'failure'
                     error = DeployError(str(error) + ' | rollback: ' + str(rollback_error))
-            self.report(p, 'failure', 'failure', error=str(error), rollback=rollback, finished_at=now(), retry_after=time.time() + 900)
+            reported = ' | '.join(part for part in (str(error), self.stale_note()) if part)
+            self.report(p, 'failure', 'failure', error=reported, rollback=rollback, finished_at=now(), retry_after=time.time() + 900)
         finally:
             if shadow:
                 try:
@@ -457,7 +527,8 @@ class Controller:
                     try:
                         self.deploy(p)
                     except Exception as error:
-                        self.report(p, 'failure', 'failure', error=str(error))
+                        self.report(p, 'failure', 'failure',
+                                    error=' | '.join(part for part in (str(error), self.stale_note()) if part))
             try:
                 self.refresh_progress()
             except Exception as error:
