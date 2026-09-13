@@ -40,6 +40,8 @@ Connect Codex CLI, Gemini CLI or a local model through **Settings → AI access*
 
 The [studio planning panel](docs/studio-planning-progress.md) keeps your games, model identity, progress and partial results visible when you leave and return; it also lets you stop an active planning request.
 
+[Studio updates](docs/studio-updates.md) checks official releases and offers the Windows installer directly from Studio, with the installed version and update instructions.
+
 ## Product family and scope
 
 > **Planning update — 5 September 2026:** there are two projects. This repository remains the public, Apache-2.0 **Core**. [Lokiravia](https://github.com/HappyMiha/AgentFactory-Cloud) is a separate public repository for the commercial product plan: creating, playing, remixing, and publishing games. No Cloud application or game pipeline is claimed as delivered by this update.

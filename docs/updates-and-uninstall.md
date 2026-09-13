@@ -3,6 +3,10 @@
 An update may fix the factory; it must never quietly take a creator's game with
 it.
 
+For the user-facing **Check for updates → Download Windows EXE** journey, see
+[Studio updates](studio-updates.md). It checks official releases and downloads an
+installer for the user to run; the signed update engine below remains a separate mechanism.
+
 Requirement trace: the update and uninstall half of `AF-GC-038`. The diagnostics
 half is in [support bundles](support-bundle.md). Applying a real update still
 needs an installer to supply the steps — Core owns the gate, not the installer.
