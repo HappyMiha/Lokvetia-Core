@@ -122,6 +122,11 @@ class StudioRecoveryTests(unittest.TestCase):
             with patch.dict('os.environ',{'AGENT_FACTORY_API_ACTOR':'other'}):
                 self.assertEqual(client.post(url,json=body,headers=headers).status_code,404)
             self.runner.submit.reset_mock()
+            with patch('agent_factory.studio_recovery.checked_local_source',side_effect=KeyError('ollama')):
+                response=client.post(url,json=body,headers=headers)
+                self.assertEqual(response.status_code,409)
+                self.assertEqual(response.json()['detail'],'local_studio_not_ready')
+            self.runner.submit.assert_not_called()
             self.assertEqual(client.post(url,json=body,headers=headers).status_code,202)
             self.assertTrue(client.post(url,json=body,headers=headers).json()['replayed'])
             self.runner.submit.assert_called_once()

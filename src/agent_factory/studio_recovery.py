@@ -53,7 +53,10 @@ def recover(database, workspace, runner, *, mission_id, actor, command_id, expec
                 raise ValueError('recovery_changed')
             if str(mission.phase) not in {'DRAFT','SPECIFICATION_ANALYSIS','BACKLOG_GENERATION'} or str(mission.disposition) != 'RUNNING':
                 raise ValueError('recovery_phase')
-            source = checked_local_source(storage,workspace)
+            try:
+                source = checked_local_source(storage,workspace)
+            except (KeyError,ValueError,OSError) as error:
+                raise ValueError('local_studio_not_ready') from error
             config = mission.configuration
             if tuple(config.local_provider_ids) != ('ollama',) or any(model != 'local:'+source.name for model in [config.default_model,*config.role_models.values()]):
                 raise ValueError('recovery_model_changed')
