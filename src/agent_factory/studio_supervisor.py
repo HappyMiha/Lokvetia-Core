@@ -640,6 +640,11 @@ class Supervisor:
                         MANDATE_EXPIRED.en.format(at=mandate.expires_at)),
                 mandate=mandate, at=stamp)
 
+        readiness = FirstRun(self.storage).readiness()
+        if not readiness.can_start:
+            return self._write(mission, "", "waiting", NO_SOURCE, mandate=mandate,
+                               detail=readiness.summary, at=stamp)
+
         state = driver.state()
         if state.mission_key and state.mission_key != mission:
             return self._write(mission, "", "refused", WRONG_MISSION, mandate=mandate, at=stamp)
@@ -651,11 +656,6 @@ class Supervisor:
             return self._write(mission, "", "waiting", Message(
                 NOT_RUNNING.uk.format(state=state.disposition),
                 NOT_RUNNING.en.format(state=state.disposition)), mandate=mandate, at=stamp)
-
-        readiness = FirstRun(self.storage).readiness()
-        if not readiness.can_start:
-            return self._write(mission, "", "waiting", NO_SOURCE, mandate=mandate,
-                               detail=readiness.summary, at=stamp)
 
         journal = AutonomyJournal(self.storage)
         open_questions = journal.open_questions(mission=mission)

@@ -4,7 +4,7 @@
 <details>
 <summary>Translation source and currency</summary>
 
-Translation source: [ai-studio-audit.uk.md](ai-studio-audit.uk.md). Source SHA-256 (UTF-8/LF): `00a77ce70cb2beca62cdb23caa17a270b34b781a0c53d604cbce41cd27a9e0f8`.
+Translation source: [ai-studio-audit.uk.md](ai-studio-audit.uk.md). Source SHA-256 (UTF-8/LF): `f4b1d09edd7f404d8d35184b327666555071743be35b7520250a910186b1e6ef`.
 
 </details>
 <!-- translation-metadata:end -->
@@ -44,6 +44,8 @@ IDs and acceptance statuses are unchanged.
   game-state changes, displayed screens/numbers and asset restrictions while
   still rejecting subjective promises. These checks do not replace engine evidence.
 - Periodic refresh waits for the previous request on a slow connection.
+- Fix nested-project checks when removing application state on Windows, and
+  inspect original ZIP entry names before separator normalization.
 - Add an owner- and revision-bound local Lokiravia → Core bridge.
 
 ## Evidence and its limits
@@ -52,6 +54,13 @@ Regression checks cover the supervisor, HTTP launch, replay, owner substitution,
 source qualification and the Lokiravia bridge. Chromium checks the studio in
 Ukrainian and English, including a narrow viewport. Backlog, translation and
 planning pipeline checks run separately.
+
+The initial full Core run covered 2003 tests: 7 failures, 4 errors and 11 skips.
+Focused reruns checked fixes for CLI behavior, the HTTP mutation inventory,
+Windows paths, ZIP validation, credential-test isolation and a missing gateway
+test dependency. Two known pre-existing branding failures remain for
+`account.html` and `identity.html`, which do not include the shared brand assets.
+Those pages are unchanged. The full suite is not reported as green.
 
 A local Windows worker ran seven Ollama API role checks and seven CLI checks.
 Real planning exposed missing nested contracts and the need for explicit

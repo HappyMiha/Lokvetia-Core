@@ -298,6 +298,7 @@ class WebHostTests(unittest.TestCase):
                         "/api/feedback/{feedback_id}/plans",
                         "/api/feedback/plans/{plan_id}/accept",
                         "/api/studio/questions/{question_id}/answer",
+                        "/api/studio/create",
                         "/api/studio/slices/{mission_key}/{stage_key}",
                         "/api/studio/cycles/{mission_key}/pause",
                         "/api/studio/cycles/{mission_key}/comments",

@@ -179,7 +179,12 @@ class ArchiveSafetyTest(unittest.TestCase):
         path = self.root / "pack.zip"
         with zipfile.ZipFile(path, "w", zipfile.ZIP_DEFLATED) as handle:
             for name, payload in entries:
-                handle.writestr(name, payload)
+                info = zipfile.ZipInfo(name)
+                # Write the requested raw entry; Windows ZipInfo construction
+                # otherwise silently turns the unsafe fixture into a safe one.
+                info.filename = name
+                info.compress_type = zipfile.ZIP_DEFLATED
+                handle.writestr(info, payload)
             if symlink:
                 info = zipfile.ZipInfo(symlink)
                 info.external_attr = (0o120777 << 16)
@@ -208,6 +213,11 @@ class ArchiveSafetyTest(unittest.TestCase):
 
     def test_backslash_separators_are_refused(self) -> None:
         report = inspect_archive(self.archive([("art\\hero.png", png())]))
+        self.assertFalse(report.safe)
+        self.assertIn("unsafe separator", report.refused[0])
+
+    def test_nul_in_the_original_entry_is_refused_before_zipinfo_truncates_it(self) -> None:
+        report = inspect_archive(self.archive([("art/hero\x00.png", png())]))
         self.assertFalse(report.safe)
         self.assertIn("unsafe separator", report.refused[0])
 
