@@ -48,6 +48,8 @@ class CredentialBrowserTests(unittest.TestCase):
         self.page.goto(self.url)
         self.page.locator('summary').filter(has_text='Налаштування').click()
         self.page.get_by_role('link',name='Доступ до AI',exact=True).click()
+        self.page.get_by_text('Що відбудеться автоматично?',exact=True).click()
+        self.page.get_by_role('link',name='Інші API-підключення',exact=True).click()
         self.page.locator('#secret').fill(self.secret)
         self.assertEqual(self.page.locator('#secret').get_attribute('type'),'password')
         self.assertNotIn(self.secret,self.page.locator('body').inner_text())

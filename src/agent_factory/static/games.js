@@ -131,7 +131,8 @@ for(const [name,form] of [['games','game-search'],['missions','mission-search'],
 }
 $('history').addEventListener('toggle',()=>{if($('history').open)action(versions);});
 window.addEventListener('beforeunload',event=>{if(dirty){event.preventDefault();event.returnValue='';}});
-action(async()=>{await Promise.all([list('games'),list('missions')]);try{const models=await api('/api/games/models');for(const item of models.items){const option=element('option',item.model+' · '+item.provider+' (конфігурація)');option.value=item.key;$('model').append(option);}if(!models.items.length)$('model-note').textContent='Сумісну локальну модель ще не налаштовано. Ідею можна зберегти й продовжити пізніше.';}catch(error){$('model-note').textContent='Не вдалося прочитати конфігурацію моделей. Ідея залишається доступною.';}const [kind,id]=location.hash.slice(1).split('/');if(id&&['start','mission'].includes(kind))await openItem(kind==='start'?'games':'missions',id);});
+const startupHash=location.hash;
+action(async()=>{await Promise.all([list('games'),list('missions')]);try{const models=await api('/api/games/models');for(const item of models.items){const option=element('option',item.model+' · '+item.provider+' (конфігурація)');option.value=item.key;$('model').append(option);}if(!models.items.length)$('model-note').textContent='Сумісну локальну модель ще не налаштовано. Ідею можна зберегти й продовжити пізніше.';}catch(error){$('model-note').textContent='Не вдалося прочитати конфігурацію моделей. Ідея залишається доступною.';}const [kind,id]=startupHash.slice(1).split('/');if(!current&&!project&&location.hash===startupHash&&id&&['start','mission'].includes(kind))await openItem(kind==='start'?'games':'missions',id);});
 
 $('reload-draft').onclick=()=>action(async()=>{
  if(!current)return;clearTimeout(timer);await saveChain;

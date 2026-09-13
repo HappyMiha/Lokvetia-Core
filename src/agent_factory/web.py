@@ -478,6 +478,7 @@ def create_app(workspace: Path, database: Path, *, environment_probes=None, cred
         finally:
             probe_executor.shutdown(wait=False, cancel_futures=True)
             studio_runner.close()
+            app.state.ai_setup.close()
 
     app = FastAPI(
         title="Lokvetia Core — Local Control Center",
@@ -500,6 +501,8 @@ def create_app(workspace: Path, database: Path, *, environment_probes=None, cred
     from .desktop_downloads import install_download_routes
     install_download_routes(app)
     install_credential_routes(app, workspace, store=credential_store)
+    from .ai_setup_web import install_routes as install_ai_setup_routes
+    install_ai_setup_routes(app, workspace, database)
     install_hardware_routes(app, workspace)
     install_game_planning_routes(app, database)
     install_configuration_advice_routes(app)
