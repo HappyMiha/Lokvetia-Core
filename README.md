@@ -12,7 +12,7 @@ Development plan for both products: [unified order of 280 requirements](docs/evo
 
 [Lokvetia](https://lokvetia.com) · [Lokiravia game creation](https://github.com/HappyMiha/Lokiravia) · [Brand and migration](docs/brand/migration.md)
 
-**Deployment monitoring:** [Deployment dashboard](docs/deploy-dashboard.html) · [Development progress page](docs/progress-dashboard.md) · [Automatic deployment and rollback](docs/autodeploy.md)
+**Deployment monitoring:** [Deployment dashboard](docs/deploy-dashboard.html) · [Development progress page](docs/progress-dashboard.md) · [Automatic deployment and rollback](docs/autodeploy.md) · [Updating the machine that deploys](docs/deploy-update.md)
 
 Formerly **AgentFactory Core**. Lokvetia is the family brand; **Lokiravia** is the separate game creation product. The domain is the brand address, not a claim that a hosted service has launched. Existing installations, Python imports, configuration and stored state remain compatible.
 

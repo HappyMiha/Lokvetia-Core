@@ -30,6 +30,11 @@ repositories every 60 seconds and performs the actual Docker deployment.
 - Retained containers remain bounded. If releases cannot drain, the limit is still
   reached and deployment blocks until an operator has verified that older jobs are
   finished and retires those releases.
+- The controller runs copies of its own files, made when it was last installed, and
+  publishes which revision they came from together with any file the revision it is
+  deploying has moved past. A failure while that list is not empty says so, so an
+  out-of-date machine is not mistaken for a faulty release. See
+  [Updating the machine that deploys](deploy-update.md).
 - Automatic schema migrations, destructive data rollback and worker restarts are not supported.
   These require an application-specific compatibility and drain plan.
 

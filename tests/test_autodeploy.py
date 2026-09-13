@@ -339,3 +339,123 @@ class ReleaseRetirementTests(unittest.TestCase):
         with patch.object(deploy, 'command', side_effect=docker):
             retired = self.controller.retire(self.project, self.controller.protected(self.project))
         self.assertEqual(retired, ['lokvetia-release-core-stopped'])
+
+
+class StaleControllerTests(unittest.TestCase):
+    """A machine running older controller files says so, instead of blaming the release.
+
+    Both failures a person sees on the deployment page - a schema that "would
+    change" and a retained-release limit - are produced by the controller itself.
+    When the controller predates the revision it is rolling out, neither message
+    is about the release, and nothing on the page used to say that.
+    """
+
+    def setUp(self):
+        self.folder = tempfile.TemporaryDirectory()
+        self.addCleanup(self.folder.cleanup)
+        self.root = Path(self.folder.name) / 'state'
+        self.checkout = Path(self.folder.name) / 'checkout'
+        for source in deploy.INSTALLED_FROM:
+            path = self.checkout / source
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text('current ' + source)
+        self.install('current ')
+
+    def install(self, prefix):
+        for source, installed in deploy.INSTALLED_FROM.items():
+            path = self.root / installed
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(prefix + source)
+
+    def controller(self):
+        return deploy.Controller({'state_root': str(self.root), 'runtime_bundle': str(self.root),
+                                  'projects': [], 'keep_releases': 2})
+
+    def test_an_installation_that_matches_the_revision_is_not_behind(self):
+        self.assertEqual(deploy.behind_checkout(self.root, self.checkout), [])
+
+    def test_every_file_the_revision_moved_past_is_named(self):
+        (self.root / 'runtime' / 'snapshot.py').write_text('the version before per-object signatures')
+        self.assertEqual(deploy.behind_checkout(self.root, self.checkout),
+                         ['ops/test-deploy/snapshot.py'])
+
+    def test_a_file_that_was_never_installed_counts_as_behind(self):
+        (self.root / 'controller.py').unlink()
+        self.assertIn('scripts/autodeploy.py', deploy.behind_checkout(self.root, self.checkout))
+
+    def test_a_file_the_revision_does_not_have_is_not_a_difference(self):
+        # A checkout older than this controller is not the controller's problem to
+        # report: only files the revision actually carries are compared.
+        (self.checkout / 'ops/test-deploy/gateway.py').unlink()
+        (self.root / 'runtime' / 'gateway.py').write_text('anything else')
+        self.assertEqual(deploy.behind_checkout(self.root, self.checkout), [])
+
+    def test_windows_line_endings_are_not_a_difference(self):
+        (self.root / 'runtime' / 'serve.py').write_text(
+            'current ops/test-deploy/serve.py'.replace('\n', '\r\n'))
+        (self.checkout / 'ops/test-deploy/serve.py').write_bytes(b'current ops/test-deploy/serve.py')
+        self.assertNotIn('ops/test-deploy/serve.py', deploy.behind_checkout(self.root, self.checkout))
+
+    def test_the_installed_revision_is_published_for_the_page(self):
+        self.root.mkdir(parents=True, exist_ok=True)
+        deploy.atomic_json(self.root / 'installed.json',
+                           {'revision': 'a' * 40, 'installed_at': '2026-09-12T19:00:00Z'})
+        self.assertEqual(self.controller().status['controller']['revision'], 'a' * 40)
+
+    def test_an_installation_that_recorded_nothing_still_publishes_a_record(self):
+        self.assertEqual(self.controller().status['controller'],
+                         {'revision': '', 'installed_at': '', 'behind': []})
+
+    def test_the_difference_reaches_the_published_state(self):
+        controller = self.controller()
+        self.install('older ')
+        controller.note_controller(self.checkout)
+        published = deploy.read_json(controller.status_path)
+        self.assertEqual(published['controller']['behind'], sorted(deploy.INSTALLED_FROM))
+
+    def test_a_failure_on_a_stale_controller_says_which_files_are_old(self):
+        controller = self.controller()
+        controller.status['controller']['behind'] = ['ops/test-deploy/snapshot.py']
+        self.assertIn('older than the revision it is rolling out', controller.stale_note())
+        self.assertIn('ops/test-deploy/snapshot.py', controller.stale_note())
+        self.assertIn('Install.ps1', controller.stale_note())
+
+    def test_a_failure_on_a_current_controller_adds_nothing(self):
+        self.assertEqual(self.controller().stale_note(), '')
+
+
+class InstallerTests(unittest.TestCase):
+    """The installer has to be able to update a machine, not only set one up."""
+
+    SCRIPT = (ROOT / 'ops' / 'test-deploy' / 'Install.ps1').read_text(encoding='utf-8')
+
+    def test_an_existing_configuration_is_reconciled_rather_than_skipped(self):
+        # The bug this fixes: a re-install used to leave an existing config.json
+        # untouched, so a key a newer release needs never arrived on a machine
+        # that had already been installed once.
+        self.assertIn('$existing = [IO.File]::ReadAllText($configPath) | ConvertFrom-Json', self.SCRIPT)
+        self.assertIn('keep_releases', self.SCRIPT)
+        self.assertIn("Copy-Item -LiteralPath $configPath -Destination \"$configPath.previous\"", self.SCRIPT)
+
+    def test_a_value_the_operator_set_is_never_overwritten(self):
+        self.assertIn('if ($null -eq $existing.PSObject.Properties[$name])', self.SCRIPT)
+        self.assertIn("if ($null -eq $project.environment.PSObject.Properties[$key])", self.SCRIPT)
+
+    def test_the_running_controller_is_stopped_before_its_files_are_replaced(self):
+        stop = self.SCRIPT.index('Stop-ScheduledTask')
+        self.assertLess(stop, self.SCRIPT.index('Copy-Item -LiteralPath "$source/scripts/autodeploy.py"'))
+        self.assertIn('did not stop', self.SCRIPT)
+
+    def test_the_controller_is_started_again_even_when_only_configuring(self):
+        configure = self.SCRIPT.index('if ($ConfigureOnly)')
+        self.assertIn('Start-ScheduledTask', self.SCRIPT[configure:configure + 300])
+
+    def test_the_installed_revision_is_recorded_for_the_controller_to_publish(self):
+        self.assertIn('installed.json', self.SCRIPT)
+        self.assertIn('rev-parse HEAD', self.SCRIPT)
+
+    def test_every_copied_file_is_one_the_controller_compares(self):
+        # If the installer starts copying a file the drift check does not know
+        # about, a stale copy of it would go unreported.
+        for source in deploy.INSTALLED_FROM:
+            self.assertIn(Path(source).name, self.SCRIPT, source)
