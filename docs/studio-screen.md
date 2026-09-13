@@ -1,5 +1,10 @@
 # One screen for the person whose game it is
 
+The [implementation audit](ai-studio-audit.en.md) describes the newer local
+creation form, five-second status refresh and qualification checks. Creating
+through that form grants and queues local planning in one explicit request;
+the legacy intake and mandate-only controls described below remain separate.
+
 Everything the AI-studio modules know is reachable over the API and the command
 line. This is the page a person actually uses: `/studio`, in Ukrainian or
 English.
@@ -59,14 +64,14 @@ laptop width, alongside the other pages.
 
 ## What is not claimed
 
-- **The page reads and asks; it does not plan.** Continuing hands the comments
-  to whoever replans, and says so.
+- **Continuing does not replan the remaining backlog yet.** The cycle records
+  the comments. The new-game form separately queues real local planning.
 - **A model is still assigned from the command line.** The screen turns roles
   on and off; giving one role its own provider and model is `lokvetia studio
   role-model`.
 - **The Play link points at the local games page** with the version digest; the
   page that runs a specific slice is separate work.
-- **Creating a game does not hand the studio the keys.** The intake writes the
-  mission; the mandate is a separate, named act on this screen, because granting
-  one on a person's behalf is exactly what a mandate exists to prevent. See
+- **Legacy intake does not dispatch work.** The new studio form explicitly
+  grants local planning and queues it as the session owner. The older intake
+  and mandate-only controls still record state without dispatch. See
   [The studio starts the work itself](studio-supervisor.md).
