@@ -36,6 +36,8 @@ lokvetia --workspace . web --open
 
 The local interface opens at `http://127.0.0.1:8765`. For the offline demonstration, run `lokvetia --workspace . demo`. Existing `agent-factory` commands remain supported and share the same data. See [installation instructions](docs/getting-started.md) and [compatibility](docs/brand/migration.md).
 
+Connect Codex CLI, Gemini CLI or a local model through **Settings → AI access** (`/connect`): choose an AI and complete login only when needed. See the [simple connection journey / Підключення AI](docs/ai-connect.md).
+
 ## Product family and scope
 
 > **Planning update — 5 September 2026:** there are two projects. This repository remains the public, Apache-2.0 **Core**. [Lokiravia](https://github.com/HappyMiha/AgentFactory-Cloud) is a separate public repository for the commercial product plan: creating, playing, remixing, and publishing games. No Cloud application or game pipeline is claimed as delivered by this update.

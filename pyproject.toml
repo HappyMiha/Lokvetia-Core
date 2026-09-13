@@ -51,4 +51,4 @@ where = ["src"]
 include = ["agent_factory*"]
 
 [tool.setuptools.package-data]
-agent_factory = ["defaults/*.json", "defaults/*.yaml", "defaults/godot/*.gd", "static/*"]
+agent_factory = ["defaults/*.json", "defaults/*.yaml", "defaults/*.toml", "defaults/godot/*.gd", "static/*"]

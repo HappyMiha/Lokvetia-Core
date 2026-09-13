@@ -219,6 +219,10 @@ class CLIProvider(Provider):
     def model_request(self, requested: str) -> tuple[list[str], str | None]:
         """Bind a canonical model ID to one reviewed argument, never shell text."""
         if not self.model_ids:
+            # The existing Gemini agent uses this explicit alias for the CLI's
+            # own default. It is not evidence of a particular effective model.
+            if self.name == 'gemini' and requested == 'google:gemini':
+                return list(self.args), None
             if requested or "{model}" in self.args:
                 raise ValueError("Selected model has no qualified CLI binding for this provider")
             # Legacy model-free tools may run, but cannot attest a model identity.
@@ -259,11 +263,26 @@ class CLIProvider(Provider):
             if key not in seen:
                 seen.add(key)
                 resolved.append(path)
+        if (self.name in {'codex','gemini','ollama'} and self.executable == self.name
+                and (not resolved or all(Path(p).suffix.lower() in {'.cmd','.bat','.ps1'} for p in resolved))):
+            from .ai_setup import launcher
+            selected = launcher(self.name, self.workspace)
+            if selected and selected[0] not in resolved:
+                resolved.insert(0, selected[0])
         return resolved
 
     def _executable_path(self) -> str | None:
         paths = self._executable_paths()
         return paths[0] if paths else None
+
+    def _launch_command(self, path: str, arguments: list[str]) -> list[str]:
+        command = [path]
+        if self.name in {'codex','gemini','ollama'} and self.executable == self.name:
+            from .ai_setup import launcher
+            selected = launcher(self.name, self.workspace)
+            if selected and os.path.normcase(selected[0]) == os.path.normcase(path):
+                command = selected
+        return [*command, *arguments]
 
     def health(self) -> dict[str, Any]:
         paths = self._executable_paths()
@@ -278,7 +297,7 @@ class CLIProvider(Provider):
         for path in paths:
             try:
                 proc = subprocess.run(
-                    [path, *self.version_args],
+                    self._launch_command(path, list(self.version_args)),
                     capture_output=True,
                     text=True,
                     encoding="utf-8",
@@ -488,10 +507,22 @@ class CLIProvider(Provider):
         path: str | None = None
         launcher_failures: list[dict[str, Any]] = []
         try:
+            provider_environment = self._safe_environment()
+            if self.name == 'gemini':
+                from .ai_setup import connected_environment
+                try:
+                    provider_environment.update(connected_environment(self.workspace, approval.approved_by))
+                except Exception:
+                    return ProviderResult(False, provider=self.name,
+                        error='Gemini credential unavailable; reconnect in AI access',
+                        metadata={**model_metadata, 'blocked': True})
+                command_suffix.extend(['--skip-trust', '--extensions', 'none',
+                    '--allowed-mcp-server-names=__lokvetia_no_server__', '--admin-policy',
+                    str(Path(__file__).parent / 'defaults/gemini-no-tools.toml')])
             for candidate in paths:
                 try:
                     proc = self.supervisor.spawn(
-                        [candidate, *command_suffix],
+                        self._launch_command(candidate, command_suffix),
                         stdin=subprocess.PIPE if stdin is not None else subprocess.DEVNULL,
                         stdout=subprocess.PIPE,
                         stderr=subprocess.PIPE,
@@ -499,7 +530,7 @@ class CLIProvider(Provider):
                         encoding="utf-8",
                         errors="replace",
                         cwd=self.workspace,
-                        env=self._safe_environment(),
+                        env=provider_environment,
                     )
                 except OSError as exc:
                     launcher_failures.append(self._launcher_failure(candidate, exc))
@@ -574,6 +605,11 @@ class CLIProvider(Provider):
             captured = capture.snapshot()
             stdout = captured["stdout"]
             stderr = captured["stderr"]
+            # A provider may echo its environment in an error or tool response.
+            if self.name == 'gemini' and provider_environment.get('GEMINI_API_KEY'):
+                secret = provider_environment['GEMINI_API_KEY']
+                stdout = stdout.replace(secret, '[REDACTED]')
+                stderr = stderr.replace(secret, '[REDACTED]')
             elapsed = round(time.monotonic() - started, 3)
             metadata = {
                 **self._approval_metadata(approval),
