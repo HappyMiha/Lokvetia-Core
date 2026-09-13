@@ -64,7 +64,7 @@ def create_local_game(database, workspace, *, actor, command_id, title, idea, ru
                                  granted_by=actor, ceiling=0, reason="Create game: local planning")
                 launch = True
             else:
-                launch = not supervisor.history(mission.mission_key)
+                launch = bool(supervisor.mandate(mission.mission_key)) and not supervisor.history(mission.mission_key)
     if launch:
         runner.submit(mission.id)
     return {"mission_id": mission.id, "mission_key": mission.mission_key,

@@ -66,6 +66,14 @@ class StudioLaunchTests(unittest.TestCase):
             self.create(idea="A different game")
         self.assertEqual(len(self.queue.submitted), 1)
 
+    def test_replay_after_cancelling_a_queued_game_cannot_requeue_it(self):
+        first=self.create()
+        with closing(SQLiteStorage(self.database)) as storage:
+            Supervisor(storage).revoke(first['mission_key'],actor='owner')
+        replay=self.create()
+        self.assertEqual(first['mission_id'],replay['mission_id'])
+        self.assertEqual(len(self.queue.submitted),1)
+
     def test_manual_verified_flag_cannot_replace_live_qualification(self):
         with closing(SQLiteStorage(self.database)) as storage:
             FirstRun(storage).connect("ollama", kind="local_model", name="qwen2.5-coder:7b",
@@ -174,6 +182,24 @@ class StudioLaunchTests(unittest.TestCase):
                 self.assertIn("configuration changed", history[-1].summary.en)
         finally:
             runner.close()
+
+    def test_cancelling_a_model_wait_does_not_wait_for_the_other_game(self):
+        from agent_factory.studio_runner import StudioRunner
+        from agent_factory.local_games import local_games_lock
+        import time
+        result=self.create()
+        runner=StudioRunner(self.database,self.root,source_check=lambda *_:None)
+        try:
+            with local_games_lock(str(self.database)+'.studio-inference'),patch('agent_factory.studio_runner.CoreMissionDriver.plan') as plan:
+                runner.submit(result['mission_id'])
+                future=runner.jobs[result['mission_id']]
+                deadline=time.monotonic()+2
+                while not future.running() and time.monotonic()<deadline:time.sleep(.01)
+                self.assertTrue(future.running())
+                runner.cancel(result['mission_id'])
+                future.result(timeout=3)
+                plan.assert_not_called()
+        finally:runner.close()
 
     def test_qualification_from_another_pc_cannot_enable_this_worker(self):
         with closing(SQLiteStorage(self.database)) as storage:
