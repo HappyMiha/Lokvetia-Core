@@ -499,6 +499,8 @@ def create_app(workspace: Path, database: Path, *, environment_probes=None, cred
     app.add_middleware(LocalHTTPBoundary, access=access)
     install_sso_routes(app, access)
     from .desktop_downloads import install_download_routes
+    from .studio_updates import install_routes as install_update_routes
+    install_update_routes(app)
     install_download_routes(app)
     install_credential_routes(app, workspace, store=credential_store)
     from .ai_setup_web import install_routes as install_ai_setup_routes

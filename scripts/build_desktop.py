@@ -21,9 +21,15 @@ def main():
     out = args.out.resolve()
     out.mkdir(parents=True, exist_ok=True)
     name = 'Lokvetia-Core-' + args.version + '-win-x64'
+    from agent_factory.studio_updates import version_key
+    version_key(args.version)
+    revision = subprocess.check_output(['git', '-C', str(root), 'rev-parse', 'HEAD'], text=True).strip()
+    build_info = out / 'lokvetia-build.json'
+    build_info.write_text(json.dumps({'version':args.version,'source_commit':revision}),encoding='utf-8')
     subprocess.run([sys.executable, '-m', 'PyInstaller', '--noconfirm', '--onefile', '--windowed',
                     '--noupx', '--name', name, '--distpath', str(out), '--workpath', str(out / 'build'),
                     '--specpath', str(out / 'build'), '--paths', str(root / 'src'),
+                    '--add-data', str(build_info)+';.',
                     '--collect-all', 'agent_factory', '--collect-all', 'temporalio',
                     '--collect-all', 'uvicorn', '--collect-all', 'pypdf',
                     '--copy-metadata', 'agent-factory-orchestrator',

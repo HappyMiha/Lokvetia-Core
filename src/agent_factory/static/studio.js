@@ -9,6 +9,37 @@
   let createCommand = null;
   let creating = false;
   let recovering = false, recoveryCommand = null;
+  let checkingUpdate = false;
+
+  function installedUpdateLabel(installed) {
+    byId('updates-current').textContent=installed.version?say('studio.updates.installed',{version:installed.version}):say(installed.kind==='source'?'studio.updates.source':'studio.updates.unknown');
+  }
+
+  async function loadUpdateInfo() {
+    try{installedUpdateLabel((await get('/api/studio/updates')).installed);}
+    catch{byId('updates-current').textContent=say('studio.updates.unknown');}
+  }
+
+  async function checkUpdate() {
+    if(checkingUpdate)return;
+    checkingUpdate=true;byId('updates-check').disabled=true;
+    byId('updates-download').hidden=true;byId('updates-details').hidden=true;byId('updates-instructions').hidden=true;
+    byId('updates-status').textContent=say('studio.updates.checking');
+    try {
+      const result=await get('/api/studio/updates/check');
+      installedUpdateLabel(result.installed);
+      byId('updates-status').textContent=say('studio.updates.'+result.status,{version:result.latest?.version||''});
+      if(result.latest){
+        byId('updates-details').hidden=false;
+        byId('updates-details').textContent=say('studio.updates.details',{size:(result.latest.size_bytes/1048576).toFixed(1),time:dateLabel(result.checked_at)});
+        byId('updates-download').href=result.latest.download_url;
+        byId('updates-download').hidden=result.status==='ahead';
+        byId('updates-instructions').hidden=result.status==='ahead';
+        byId('updates-checksum').textContent='SHA-256: '+result.latest.sha256;
+      }
+    }catch{byId('updates-status').textContent=say('studio.updates.unavailable');}
+    finally{checkingUpdate=false;byId('updates-check').disabled=false;}
+  }
   let pendingLoads = 0;
   let libraryOffset = 0, selectedGame = null, libraryOwner = null;
   function dateLabel(value) {
@@ -557,6 +588,7 @@
   }
 
   function start() {
+    byId('updates-check').onclick=checkUpdate;
     if (query.get('mission')) selectGame(query.get('mission'));
     byId('games-previous').onclick=()=>{libraryOffset=Math.max(0,libraryOffset-6);load();};
     byId('games-more').onclick=()=>{libraryOffset+=6;load();};
@@ -619,7 +651,7 @@
     byId('send').addEventListener('click', () => act('send'));
     byId('run-grant').addEventListener('click', () => delegate('grant'));
     byId('run-revoke').addEventListener('click', () => delegate('revoke'));
-    loadMessages().then(load).catch(error => {
+    loadMessages().then(()=>{loadUpdateInfo();return load();}).catch(error => {
       byId('summary').textContent = say('studio.error', {message: error.message});
     });
     setInterval(() => { if (!document.hidden && pendingLoads === 0) load(); }, 5000);

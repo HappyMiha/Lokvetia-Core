@@ -25,6 +25,16 @@
       </nav>
     </section>
 
+    <section class="card" id="studio-updates" aria-labelledby="updates-title">
+      <h2 id="updates-title" data-i18n="studio.updates.title">Оновлення студії</h2>
+      <p id="updates-current"></p>
+      <div class="loop-actions"><button id="updates-check" type="button" data-i18n="studio.updates.check">Перевірити оновлення</button><a id="updates-download" class="update-download" hidden target="_blank" rel="noopener noreferrer" data-i18n="studio.updates.download">Завантажити EXE для Windows</a></div>
+      <p id="updates-status" role="status" aria-live="polite" data-i18n="studio.updates.idle">Перевірка відбувається лише після натискання. AI для цього не використовується.</p>
+      <p id="updates-details" hidden></p>
+      <details id="updates-instructions" hidden><summary data-i18n="studio.updates.how">Як установити оновлення</summary><p data-i18n="studio.updates.instructions">Завершіть активну роботу й закрийте студію. Відкрийте завантажений EXE та натисніть «Встановити й відкрити». Видаляти попередню інсталяцію, ігри чи моделі не потрібно. Завантаження саме не встановлює оновлення.</p><p id="updates-checksum"></p></details>
+      <a id="updates-releases" href="https://github.com/HappyMiha/Lokvetia-Core/releases" target="_blank" rel="noopener noreferrer" data-i18n="studio.updates.releases">Відкрити офіційні завантаження</a>
+    </section>
+
     <section class="card" aria-labelledby="library-title">
       <h2 id="library-title" data-i18n="studio.library.title">Мої ігри</h2>
       <p data-i18n="studio.library.help">Ідеї, результати й поточне планування зберігаються тут. Вихід зі сторінки не зупиняє роботу.</p>
