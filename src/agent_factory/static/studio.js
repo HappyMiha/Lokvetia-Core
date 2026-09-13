@@ -8,6 +8,7 @@
   const query = new URLSearchParams(location.search);
   let createCommand = null;
   let creating = false;
+  let recovering = false, recoveryCommand = null;
   let pendingLoads = 0;
   let libraryOffset = 0, selectedGame = null, libraryOwner = null;
   function dateLabel(value) {
@@ -43,6 +44,10 @@
     }));
     byId('planning-explanation').textContent=game.state==='failed'?say('studio.progress.failed',{role:game.failure_role||game.last_detail||game.summary}):game.state==='interrupted'?say('studio.progress.interrupted'):game.state==='cancelled'?say('studio.progress.stopped'):game.state==='stopping'?say('studio.progress.stopping'):game.background?say('studio.progress.running'):game.last_detail;
     byId('planning-stop').hidden=!game.can_stop;
+    byId('planning-recovery').hidden=!game.can_recover;
+    byId('planning-recover').disabled=recovering;
+    byId('recovery-reason').textContent=game.recovery_reason||'';
+    byId('recovery-scope').textContent=say('studio.recovery.scope',{kept:game.recovery_kept_steps||0,model:game.model});
     byId('planning-idea').textContent=game.idea;
     byId('planning-failure').hidden=!game.failure_details?.length;
     replace(byId('planning-errors'),(game.failure_details||[]).map(error=>element('li',error)));
@@ -96,6 +101,7 @@
       byId('library-error').textContent=say('studio.error',{message:error.message});
       byId('planning-status').textContent=say('studio.error',{message:error.message});
       byId('planning-stop').hidden=true;
+      byId('planning-recovery').hidden=true;
     }
   }
 
@@ -178,7 +184,7 @@
     });
     const payload = await readJson(response);
     if (!response.ok || payload.error) {
-      const detail = payload.detail === 'local_studio_not_ready' ? say('studio.create.notready') : payload.detail;
+      const detail = payload.detail === 'local_studio_not_ready' ? say('studio.create.notready') : typeof payload.detail==='string' && payload.detail.startsWith('recovery_') ? say('studio.recovery.'+payload.detail) : payload.detail;
       throw new Error(payload.error ? payload.error.message : (typeof detail === 'string' ? detail : `HTTP ${response.status}`));
     }
     return payload;
@@ -554,6 +560,18 @@
     if (query.get('mission')) selectGame(query.get('mission'));
     byId('games-previous').onclick=()=>{libraryOffset=Math.max(0,libraryOffset-6);load();};
     byId('games-more').onclick=()=>{libraryOffset+=6;load();};
+    byId('planning-recover').onclick=async()=>{
+      const game=selectedGame;if(!game?.can_recover||recovering)return;
+      recovering=true;byId('planning-recover').disabled=true;
+      const binding=game.mission_key+game.checkpoint;
+      if(recoveryCommand?.binding!==binding)recoveryCommand={binding,id:crypto.randomUUID()};
+      byId('recovery-result').textContent=say('studio.recovery.checking');
+      try{
+        await post(`/api/studio/games/${game.mission_id}/recover`,{command_id:recoveryCommand.id,checkpoint:game.checkpoint});
+        recoveryCommand=null;byId('recovery-result').textContent=say('studio.recovery.accepted');await load();
+      }catch(error){byId('recovery-result').textContent=error.message;}
+      finally{recovering=false;byId('planning-recover').disabled=false;}
+    };
     byId('planning-stop').onclick=async()=>{
       const game=selectedGame;if(!game)return;
       byId('planning-stop').disabled=true;

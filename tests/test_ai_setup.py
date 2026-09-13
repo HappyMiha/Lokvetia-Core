@@ -144,11 +144,30 @@ class SetupTests(unittest.TestCase):
         self.assertIsNone(self.service.scan('owner')['providers'][0]['connection'])
 
     def test_existing_local_model_needs_no_key_or_download(self):
+        from tests.test_environment_model_probe import synthetic_result,MODEL_DIGEST
         with patch.object(module,'local_api',side_effect=[{'models':[{'name':'qwen2.5-coder:7b'}]},
-                {'model':'qwen2.5-coder:7b','done':True,'response':'LOKVETIA_OK'}]):
+                {'model':'qwen2.5-coder:7b','done':True,'response':'LOKVETIA_OK'}]), \
+                patch('agent_factory.local_role_qualification.qualify',return_value=synthetic_result()) as qualify, \
+                patch('agent_factory.environment_model_probe.model_inventory',return_value=MODEL_DIGEST), \
+                patch('agent_factory.hardware_inventory.collect_inventory',return_value={'gpus':[]}):
             self.start('ollama');result=self.execute()
+            with patch('agent_factory.studio_start.model_inventory',return_value=MODEL_DIGEST), \
+                 patch('agent_factory.studio_start.require_a_build_machine',return_value=SimpleNamespace(is_the_users_computer=True)):
+                from agent_factory.studio_start import checked_local_source
+                from agent_factory.storage import SQLiteStorage
+                with __import__('contextlib').closing(SQLiteStorage(self.root/'state.db')) as storage:
+                    self.assertEqual(checked_local_source(storage,self.root).name,'qwen2.5-coder:7b')
+            qualify.assert_called_once()
         self.assertEqual(result['status'],'ready');self.assertEqual(result['model'],'qwen2.5-coder:7b')
         self.process.assert_not_called()
+
+    def test_local_connection_never_claims_ready_when_role_qualification_fails(self):
+        with patch.object(module,'local_api',side_effect=[{'models':[{'name':'qwen2.5-coder:7b'}]},
+                {'model':'qwen2.5-coder:7b','done':True,'response':'LOKVETIA_OK'}]), \
+                patch('agent_factory.local_role_qualification.qualify',side_effect=ValueError('private failure')):
+            self.start('ollama');result=self.execute()
+        self.assertEqual(result['step'],'qualification_failed');self.record.assert_not_called()
+        self.assertNotIn('private failure',json.dumps(result))
 
     def test_quota_and_timeout_are_actionable_without_leaking_output(self):
         self.process.side_effect=module.SetupError('timeout')

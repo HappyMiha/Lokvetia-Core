@@ -48,10 +48,10 @@ def game_progress(storage, runner, mission_id, actor, lang='uk', *, details=True
         state = 'stopping' if active else 'cancelled'
     elif str(mission.phase) == 'WAITING_FOR_BACKLOG_APPROVAL':
         state = 'ready'
-    elif failure:
-        state = 'failed'
     elif active:
         state = process
+    elif failure:
+        state = 'failed'
     elif process == 'failed' or (history and history[0].outcome in {'waiting','refused','asked','unknown'}):
         state = 'failed'
     elif run or (history and history[0].outcome == 'in_flight') or mandates:
@@ -83,10 +83,41 @@ def game_progress(storage, runner, mission_id, actor, lang='uk', *, details=True
         'last_detail':history[0].summary.text(lang) if history else '',
         'failure_role':ROLE_NAMES.get(failure['role_id'],(failure['role_id'],)*2)[english] if failure else None}
     if details:
+        from .studio_recovery import checkpoint
         result['idea'] = mission.initial_specification
         result['failure_details'] = [str(error)[:600] for error in json.loads(failure['validation_errors_json'])[:8]] if failure else []
         result['artifacts'] = [{'id':row['id'], 'title':ROLE_NAMES[row['role_id']][english],
                                 'content':json.loads(row['content_json'])} for row in artifacts]
+        result['checkpoint'] = checkpoint(storage,mission)
+        result['can_recover'] = (state in {'failed','interrupted','cancelled','idle'} and local_only
+            and str(mission.phase) in {'DRAFT','SPECIFICATION_ANALYSIS','BACKLOG_GENERATION'}
+            and str(mission.disposition)=='RUNNING')
+        errors=' '.join(result['failure_details']).lower()
+        reason = ('Модель повернула відповідь, яка не відповідає вимогам цього етапу. Перевірені результати збережено.',
+                  'The model returned an answer that does not meet this stage’s requirements. Validated results are saved.')
+        if state=='cancelled':
+            reason=('Планування зупинено за вашим запитом. Можна продовжити зі збереженого результату.',
+                    'Planning was stopped at your request. You can continue from saved results.')
+        elif state=='interrupted':
+            reason=('Студія перезапустилась і не може підтвердити завершення останнього запиту. Продовження повторить лише незбережену роботу.',
+                    'Studio restarted and cannot confirm the last request finished. Continuing repeats only unsaved work.')
+        elif any(word in errors for word in ('timeout','timed out','deadline')):
+            reason=('Модель не встигла відповісти за відведений час. Закрийте інші важкі програми й продовжіть.',
+                    'The model did not answer within its time limit. Close other demanding applications and continue.')
+        elif any(word in errors for word in ('connection','unavailable','executable')):
+            reason=('Локальний AI недоступний. Перепідключіть локальну модель, потім поверніться й продовжіть.',
+                    'Local AI is unavailable. Reconnect the local model, then return and continue.')
+        elif not failure and state=='failed':
+            reason=('Студія не змогла завершити планування. Перевірте підключення локального AI; нижче збережено деталі зупинки.',
+                    'Studio could not finish planning. Check the local AI connection; stop details are saved below.')
+        elif 'requirement_ids cannot be empty' in errors:
+            reason=('Модель описала частину гри без зв’язку з її вимогами. Продовження попросить виправити цей зв’язок; вашу ідею й готові вимоги збережено.',
+                    'The model described part of the game without linking it to requirements. Continuing asks it to repair that link; your idea and validated requirements are saved.')
+        elif 'not deterministically measurable' in errors:
+            reason=('Модель запропонувала надто нечіткі критерії готовності гри. Продовження попросить зробити їх конкретними й перевірюваними.',
+                    'The model proposed acceptance criteria that are too vague. Continuing asks for concrete, testable criteria.')
+        result['recovery_reason']=reason[english]
+        result['recovery_kept_steps']=min(len(done),2) if len(done)==5 else len(done)
     return result
 
 

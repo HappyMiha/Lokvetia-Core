@@ -6624,6 +6624,22 @@ MIGRATIONS: tuple[tuple[int, str], ...] = (
     (87, WORKER_MIGRATION),
     (88, FIRST_RUN_MIGRATION),
     (89, SUPERVISOR_MIGRATION),
+    (90, """
+        CREATE TABLE studio_planning_recoveries(
+            id INTEGER PRIMARY KEY,
+            mission_id INTEGER NOT NULL REFERENCES autonomous_missions(id),
+            actor TEXT NOT NULL, command_id TEXT NOT NULL, checkpoint TEXT NOT NULL,
+            source_run_id INTEGER REFERENCES autonomous_planning_pipeline_runs(id),
+            through_step_id INTEGER NOT NULL,
+            mandate_id INTEGER NOT NULL UNIQUE REFERENCES studio_mandates(id),
+            created_at TEXT NOT NULL,
+            UNIQUE(actor,command_id)
+        );
+        CREATE TRIGGER studio_recovery_no_update BEFORE UPDATE ON studio_planning_recoveries
+        BEGIN SELECT RAISE(ABORT,'planning recovery is immutable'); END;
+        CREATE TRIGGER studio_recovery_no_delete BEFORE DELETE ON studio_planning_recoveries
+        BEGIN SELECT RAISE(ABORT,'planning recovery is durable'); END;
+    """),
 )
 
 RUN_TRANSITIONS = TRANSITIONS["run"]

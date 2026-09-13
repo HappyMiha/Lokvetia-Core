@@ -39,6 +39,12 @@
       <ol id="planning-steps"></ol><p id="planning-explanation"></p>
       <details id="planning-failure" hidden><summary data-i18n="studio.progress.reason">Чому зупинилося</summary><ul id="planning-errors"></ul></details>
       <button id="planning-stop" type="button" hidden data-i18n="studio.progress.stop">Зупинити планування</button>
+      <div id="planning-recovery" class="recovery" hidden>
+        <h3 data-i18n="studio.recovery.title">Продовжимо вашу гру</h3>
+        <p id="recovery-reason"></p><p id="recovery-scope"></p>
+        <div class="loop-actions"><button id="planning-recover" type="button" data-i18n="studio.recovery.start">Виправити й продовжити</button><a href="/connect" data-i18n="studio.recovery.connect">Перевірити локальний AI</a></div>
+        <p id="recovery-result" role="status" aria-live="polite"></p>
+      </div>
       <details><summary data-i18n="studio.progress.idea">Початкова ідея</summary><p id="planning-idea" class="preserve-lines"></p></details>
       <h3 data-i18n="studio.progress.results">Збережені результати</h3><div id="planning-artifacts"></div>
     </section>

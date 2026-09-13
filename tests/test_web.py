@@ -291,6 +291,7 @@ class WebHostTests(unittest.TestCase):
                     {
                         "/api/ai-setup",
                         "/api/studio/games/{mission_id}/stop",
+                        "/api/studio/games/{mission_id}/recover",
                         "/api/credential-connections",
                         "/api/settings/values/{key}",
                         "/api/settings/values/{key}/reset",
