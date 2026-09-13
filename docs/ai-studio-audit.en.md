@@ -4,7 +4,7 @@
 <details>
 <summary>Translation source and currency</summary>
 
-Translation source: [ai-studio-audit.uk.md](ai-studio-audit.uk.md). Source SHA-256 (UTF-8/LF): `2554e0fc878e9f77c1955906c00a84957dcf61a0a5d91d56535f74a251af03c2`.
+Translation source: [ai-studio-audit.uk.md](ai-studio-audit.uk.md). Source SHA-256 (UTF-8/LF): `00a77ce70cb2beca62cdb23caa17a270b34b781a0c53d604cbce41cd27a9e0f8`.
 
 </details>
 <!-- translation-metadata:end -->
@@ -40,6 +40,10 @@ IDs and acceptance statuses are unchanged.
   digest and the unchanged provider profile. A `verified` flag alone is insufficient.
 - Planning requests now include nested output fields before the first inference;
   previously those fields were exposed only through validation failures.
+- Specify nested evidence types and required backlog fields. Recognize concrete
+  game-state changes, displayed screens/numbers and asset restrictions while
+  still rejecting subjective promises. These checks do not replace engine evidence.
+- Periodic refresh waits for the previous request on a slow connection.
 - Add an owner- and revision-bound local Lokiravia → Core bridge.
 
 ## Evidence and its limits
@@ -62,10 +66,13 @@ a real worker; it is not a model-created arbitrary game or a graphical playtest.
 Both supplied test domains returned Cloudflare 1033 during inspection. A branch
 push is not evidence of site deployment or end-to-end scenario acceptance.
 
-None of six full planning trials with Qwen 7B produced a verified plan: trials
-stopped on the JSON contract or acceptance criteria. Do not weaken validation
-to label such a result ready. Core and Lokiravia wait for their shared model
-without the ordinary ten-second write timeout dropping a queued request.
+None of eleven full planning trials with Qwen 7B produced a verified backlog.
+Some failures came from overly narrow recognition of acceptance criteria; those
+cases are fixed and covered by regressions. One trial passed analysis,
+requirements and architecture on the first attempt. The last trial stopped on
+an empty architecture decision list. The result remains unverified. Core and
+Lokiravia wait for their shared model without the ordinary ten-second write
+timeout dropping a queued request.
 
 ## Running locally
 

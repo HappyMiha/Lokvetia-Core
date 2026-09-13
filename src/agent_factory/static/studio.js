@@ -8,6 +8,7 @@
   const query = new URLSearchParams(location.search);
   let createCommand = null;
   let creating = false;
+  let pendingLoads = 0;
 
   // Every visible string comes from the server's catalogue, so a missing
   // translation shows up as a missing key rather than as silent Ukrainian.
@@ -343,6 +344,7 @@
     // flight. Only the newest one may paint, or a slow answer about the old
     // game quietly replaces what is on the screen.
     const generation = ++state.generation;
+    pendingLoads += 1;
     try {
       const [first, local, plan, decisions, tools, money, roster, cycles, machines, run] =
         await Promise.all([
@@ -379,6 +381,8 @@
         byId('create-readiness').textContent = say('studio.error', {message: error.message});
         byId('summary').textContent = say('studio.error', {message: error.message});
       }
+    } finally {
+      pendingLoads -= 1;
     }
   }
 
@@ -489,7 +493,7 @@
     loadMessages().then(load).catch(error => {
       byId('summary').textContent = say('studio.error', {message: error.message});
     });
-    setInterval(() => { if (!document.hidden) load(); }, 5000);
+    setInterval(() => { if (!document.hidden && pendingLoads === 0) load(); }, 5000);
   }
 
   if (document.readyState === 'loading') {

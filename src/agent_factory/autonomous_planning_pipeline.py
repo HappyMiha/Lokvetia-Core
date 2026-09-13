@@ -248,7 +248,22 @@ class PlanningArtifactSchemas:
         re.IGNORECASE,
     )
     RUNTIME_CHECK = re.compile(
-        r"\b(?:loads?|runs?|starts?|launches?)\b.{0,80}\b(?:without errors?|exit code\s+0)\b",
+        r"\b(?:loads?|runs?|starts?|launches?)\b.{0,80}\b(?:without (?:any )?errors?|exit code\s+0)\b",
+        re.IGNORECASE,
+    )
+    UI_ASSERTION = re.compile(
+        r"\b(?:displays?|shows?|hides?)\b.{0,60}\b(?:screens?|counters?|text|messages?|dialogs?|menus?|\d+(?:\.\d+)?)\b",
+        re.IGNORECASE,
+    )
+    ASSET_CONSTRAINT = re.compile(
+        r"\b(?:does\s+not|must\s+not|never)\s+(?:use|include)\b.{0,30}\b(?:paid|unlicensed)\s+assets?\b",
+        re.IGNORECASE,
+    )
+    STATE_CHANGE = re.compile(
+        r"\b(?:screens?|counters?|text|messages?|dialogs?|menus?)\b.{0,40}"
+        r"\b(?:displays?|appears?|disappears?|is visible|is hidden)\b|"
+        r"\b(?:position|score|counter|coordinates?)\b.{0,30}"
+        r"\b(?:increases?|decreases?|changes?|increments?|decrements?|resets?)\b",
         re.IGNORECASE,
     )
 
@@ -495,7 +510,9 @@ class PlanningArtifactSchemas:
         normalized = value.strip()
         if len(normalized) < 12 or not (
             cls.OBSERVABLE.search(normalized) or cls.GAME_MEASUREMENT.search(normalized)
-            or cls.RUNTIME_CHECK.search(normalized)
+            or cls.RUNTIME_CHECK.search(normalized) or cls.UI_ASSERTION.search(normalized)
+            or cls.ASSET_CONSTRAINT.search(normalized)
+            or cls.STATE_CHANGE.search(normalized)
         ):
             raise PlanningRoleOutputError(
                 f"{label} acceptance criterion is not deterministically measurable: "

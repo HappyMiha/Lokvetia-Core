@@ -171,8 +171,8 @@
     {
       "source": "docs/ai-studio-audit.uk.md",
       "translation": "docs/ai-studio-audit.en.md",
-      "source_sha256": "2554e0fc878e9f77c1955906c00a84957dcf61a0a5d91d56535f74a251af03c2",
-      "translation_sha256": "54512da526bcc55c0d300fab13eb907e62c69a1c3cac3863126fc4a84621b318"
+      "source_sha256": "00a77ce70cb2beca62cdb23caa17a270b34b781a0c53d604cbce41cd27a9e0f8",
+      "translation_sha256": "b4a931d7e57c5f20accf1e09ceec3ad4ea42390e72645bae97a5f7b432e68127"
     }
   ],
   "canonical_sources": [

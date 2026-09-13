@@ -159,6 +159,21 @@ class StudioPageTests(unittest.TestCase):
         finally:
             page.close()
 
+    def test_periodic_refresh_waits_for_an_existing_slow_load(self):
+        page = self.browser.new_page()
+        pending = []
+        page.clock.install()
+        page.route("**/api/studio/local-readiness?*", lambda route: pending.append(route))
+        try:
+            with page.expect_request("**/api/studio/local-readiness?*"):
+                page.goto(self.url + "/studio?lang=en", wait_until="domcontentloaded")
+            page.clock.run_for(11000)
+            self.assertEqual(len(pending), 1)
+            pending[0].fulfill(json={"can_start": False, "summary": "Waiting for qualification"})
+            expect(page.locator("#create-readiness")).to_contain_text("Waiting for qualification")
+        finally:
+            page.close()
+
     def test_create_sends_one_confirmed_request_and_opens_its_mission(self):
         page = self.browser.new_page()
         sent = []
