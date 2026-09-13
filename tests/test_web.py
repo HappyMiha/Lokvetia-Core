@@ -289,6 +289,7 @@ class WebHostTests(unittest.TestCase):
                 self.assertEqual(
                     mutation_routes,
                     {
+                        "/api/ai-setup",
                         "/api/credential-connections",
                         "/api/settings/values/{key}",
                         "/api/settings/values/{key}/reset",

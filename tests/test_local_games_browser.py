@@ -227,3 +227,16 @@ class LocalGamesBrowserTests(unittest.TestCase):
         self.page.route('**/api/autonomous-missions/*/environment/check', lambda route: route.fulfill(status=503, json={'detail':'unavailable'}))
         self.page.locator('#check-environment').click()
         self.page.wait_for_function("document.querySelector('#environment-state').textContent.includes('недоступний')")
+
+    def test_late_model_list_cannot_reopen_new_draft_and_cancel_its_autosave(self):
+        pending=[]
+        self.page.route('**/api/games/models',lambda route:pending.append(route))
+        self.create()
+        self.page.locator('#idea').fill('Preserve my idea while AI choices load.')
+        self.assertEqual(len(pending),1)
+        pending[0].fulfill(json={'items':[]})
+        self.saved()
+        self.page.unroute('**/api/games/models')
+        self.page.reload()
+        self.page.locator('#idea').wait_for(state='visible')
+        self.assertEqual(self.page.locator('#idea').input_value(),'Preserve my idea while AI choices load.')
