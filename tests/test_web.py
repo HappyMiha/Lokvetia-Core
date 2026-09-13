@@ -308,6 +308,8 @@ class WebHostTests(unittest.TestCase):
                         "/api/studio/roster/{mission_key}/{role_id}",
                         "/api/studio/machines/{machine_key}",
                         "/api/studio/first-run/{source_key}",
+                        "/api/studio/supervisor/{mission_key}",
+                        "/api/studio/supervisor/{mission_key}/revoke",
                         "/api/hardware/scan",
                         "/api/configuration-advice",
                         "/api/game-planning/{mission_id}",
@@ -1441,6 +1443,70 @@ class StudioSetupApiTests(unittest.TestCase):
                     headers=self.HEADERS,
                 )
                 self.assertTrue(client.get("/api/studio/first-run").json()["can_start"])
+
+    def test_a_game_nobody_delegated_reports_nobody(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            with self.client(tmp) as client:
+                report = client.get("/api/studio/supervisor/m1?lang=en").json()
+                self.assertFalse(report["running_on_its_own"])
+                self.assertIsNone(report["mandate"])
+                self.assertEqual(report["steps"], [])
+
+    def test_a_mandate_needs_confirmation_like_every_other_mutation(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            with self.client(tmp) as client:
+                refused = client.post(
+                    "/api/studio/supervisor/m1",
+                    json={"confirmed": True, "actor": "Miha", "steps": ["plan"]},
+                )
+                self.assertEqual(refused.status_code, 400)
+                self.assertFalse(
+                    client.get("/api/studio/supervisor/m1").json()["running_on_its_own"])
+
+    def test_granting_and_taking_back_leaves_the_record_behind(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            with self.client(tmp) as client:
+                granted = client.post(
+                    "/api/studio/supervisor/m1?lang=en",
+                    json={"confirmed": True, "actor": "Miha", "steps": ["plan"],
+                          "ceiling": 20, "hours": 6},
+                    headers=self.HEADERS,
+                ).json()
+                self.assertEqual(granted["granted_by"], "Miha")
+                self.assertTrue(granted["live"])
+                self.assertTrue(
+                    client.get("/api/studio/supervisor/m1").json()["running_on_its_own"])
+                revoked = client.post(
+                    "/api/studio/supervisor/m1/revoke?lang=en",
+                    json={"confirmed": True, "actor": "Miha"},
+                    headers=self.HEADERS,
+                ).json()
+                self.assertFalse(revoked["live"])
+                self.assertFalse(
+                    client.get("/api/studio/supervisor/m1").json()["running_on_its_own"])
+
+    def test_a_step_the_studio_does_not_know_is_refused_in_the_persons_language(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            with self.client(tmp) as client:
+                answer = client.post(
+                    "/api/studio/supervisor/m1?lang=en",
+                    json={"confirmed": True, "actor": "Miha", "steps": ["ship_it"]},
+                    headers=self.HEADERS,
+                )
+                self.assertEqual(answer.status_code, 409)
+                self.assertEqual(answer.json()["error"]["code"], "mandate_refused")
+                self.assertIn("ship_it", answer.json()["error"]["message"])
+
+    def test_taking_back_what_was_never_given_is_refused(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            with self.client(tmp) as client:
+                answer = client.post(
+                    "/api/studio/supervisor/m1/revoke?lang=en",
+                    json={"confirmed": True, "actor": "Miha"},
+                    headers=self.HEADERS,
+                )
+                self.assertEqual(answer.status_code, 409)
+                self.assertIn("no live mandate", answer.json()["error"]["message"])
 
     def test_a_local_model_is_refused_when_the_card_will_not_carry_it(self):
         with tempfile.TemporaryDirectory() as tmp:

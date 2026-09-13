@@ -193,6 +193,39 @@ class StudioPageTests(unittest.TestCase):
         finally:
             page.close()
 
+    def test_a_game_nobody_delegated_says_so_and_offers_the_keys(self):
+        page = self.open("/studio?lang=en")
+        try:
+            self.assertIn("Nobody has asked", page.inner_text("#run-state"))
+            self.assertTrue(page.locator("#run-grant").is_visible())
+            self.assertFalse(page.locator("#run-revoke").is_visible())
+            self.assertIn("has not done anything here yet", page.inner_text("#run-empty"))
+        finally:
+            page.close()
+
+    def test_handing_the_studio_the_keys_takes_two_clicks_and_a_name(self):
+        page = self.open("/studio?lang=en")
+        try:
+            # Granting changes state, so it gets a game of its own rather than
+            # disturbing the seeded one every other test reads.
+            page.fill("#mission", "keys-of-its-own")
+            page.dispatch_event("#mission", "change")
+            page.wait_for_selector("#plan-empty:visible")
+            page.click("#run-grant")
+            self.assertIn("Enter a name", page.inner_text("#run-result"))
+            page.fill("#run-actor", "Miha")
+            page.click("#run-grant")
+            # The first click with a name explains what the studio will then do.
+            self.assertIn("signing every step with your name",
+                          page.inner_text("#run-result"))
+            self.assertIn("Nobody has asked", page.inner_text("#run-state"))
+            page.click("#run-grant")
+            page.wait_for_selector("#run-revoke:visible")
+            self.assertIn("Miha asked the studio", page.inner_text("#run-state"))
+            self.assertIn("plan", page.inner_text("#run-mandate"))
+        finally:
+            page.close()
+
     def test_the_loop_shows_the_pause_and_what_was_asked_for(self):
         page = self.open("/studio?lang=en")
         try:

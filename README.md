@@ -344,6 +344,7 @@ See:
 - [What it costs, and what to do when a tool costs money](docs/studio-money.md)
 - [Who is in the studio, which machine answers, and when work can start](docs/studio-setup.md)
 - [One screen for the person whose game it is](docs/studio-screen.md)
+- [The studio starts the work itself](docs/studio-supervisor.md)
 - [What you downloaded, and whether it is what we published](docs/distribution.md)
 - [Whose hardware is this?](docs/machine-identity.md)
 - [Налаштування без редагування файлів](docs/settings.md)

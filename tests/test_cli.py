@@ -9,7 +9,13 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 
 
-class CLITests(unittest.TestCase):
+class Runs:
+    """Running the command line, without being a test case itself.
+
+    Inheriting from a TestCase that already has tests reruns those tests in
+    every subclass, so what is shared is the helper, not the suite.
+    """
+
     def run_cli(self, workspace: Path, *arguments: str):
         environment = os.environ.copy()
         environment["PYTHONPATH"] = str(ROOT / "src")
@@ -32,6 +38,8 @@ class CLITests(unittest.TestCase):
             check=False,
         )
 
+
+class CLITests(Runs, unittest.TestCase):
     def test_from_zero_init_demo_and_approval_stop(self):
         with tempfile.TemporaryDirectory() as tmp:
             workspace = Path(tmp)
@@ -189,7 +197,7 @@ class ParserShapeTests(unittest.TestCase):
         self.assertFalse(hasattr(preflight, "output"))
 
 
-class FeedbackCommandTests(CLITests):
+class FeedbackCommandTests(Runs, unittest.TestCase):
     """The command line follows the same rules the API does."""
 
     def test_a_preview_sends_nothing_and_stores_nothing(self):
@@ -225,3 +233,97 @@ class FeedbackCommandTests(CLITests):
             verdict = json.loads(shown.stdout)["verdict"]
             self.assertEqual(verdict["state"], "not_checked")
             self.assertFalse(verdict["confirmed"])
+
+
+class SupervisorCommandTests(Runs, unittest.TestCase):
+    """Handing the studio the keys, and taking them back, from the command line."""
+
+    def delegated(self, workspace, *extra):
+        self.run_cli(workspace, "init")
+        return self.run_cli(
+            workspace, "studio", "mandate", "--mission", "cat-coins",
+            "--actor", "Miha", "--allow", "plan", "--language", "en", *extra)
+
+    def test_a_mandate_names_the_person_the_steps_and_its_end(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            granted = self.delegated(workspace, "--ceiling", "20")
+            self.assertEqual(granted.returncode, 0, granted.stderr)
+            mandate = json.loads(granted.stdout)
+            self.assertEqual(mandate["granted_by"], "Miha")
+            self.assertEqual(mandate["steps"], ["plan"])
+            self.assertEqual(mandate["ceiling"], 20.0)
+            self.assertTrue(mandate["expires_at"])
+            self.assertTrue(mandate["live"])
+
+    def test_a_step_the_studio_does_not_know_is_refused_by_the_parser(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            self.run_cli(workspace, "init")
+            refused = self.run_cli(
+                workspace, "studio", "mandate", "--mission", "cat-coins",
+                "--actor", "Miha", "--allow", "ship_it")
+            self.assertNotEqual(refused.returncode, 0)
+
+    def test_running_without_a_source_says_so_and_asks_for_nobody(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            self.delegated(workspace)
+            ran = self.run_cli(
+                workspace, "studio", "run", "--mission", "cat-coins",
+                "--mission-id", "1", "--once", "--language", "en")
+            steps = json.loads(ran.stdout)
+            self.assertEqual(steps[0]["outcome"], "waiting")
+            self.assertIn("no checked source", steps[0]["summary"])
+            # Waiting on the world is not the same as waiting on a person.
+            self.assertEqual(ran.returncode, 0)
+
+    def test_running_with_nobody_in_charge_refuses_and_calls_nothing(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            self.run_cli(workspace, "init")
+            ran = self.run_cli(
+                workspace, "studio", "run", "--mission", "cat-coins",
+                "--mission-id", "1", "--once", "--language", "en")
+            steps = json.loads(ran.stdout)
+            self.assertEqual(steps[0]["outcome"], "refused")
+            self.assertIn("Nobody has asked", steps[0]["summary"])
+
+    def test_the_history_shows_the_mandate_and_what_it_allows(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            self.delegated(workspace)
+            listed = self.run_cli(
+                workspace, "studio", "steps", "--mission", "cat-coins",
+                "--language", "en")
+            report = json.loads(listed.stdout)
+            self.assertTrue(report["running_on_its_own"])
+            self.assertEqual(report["may"], ["plan"])
+
+    def test_taking_the_keys_back_keeps_what_was_already_done(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            self.delegated(workspace)
+            self.run_cli(workspace, "studio", "run", "--mission", "cat-coins",
+                         "--mission-id", "1", "--once")
+            revoked = self.run_cli(
+                workspace, "studio", "revoke-mandate", "--mission", "cat-coins",
+                "--actor", "Miha", "--language", "en")
+            self.assertEqual(revoked.returncode, 0, revoked.stderr)
+            self.assertFalse(json.loads(revoked.stdout)["live"])
+            listed = self.run_cli(
+                workspace, "studio", "steps", "--mission", "cat-coins",
+                "--language", "en")
+            report = json.loads(listed.stdout)
+            self.assertFalse(report["running_on_its_own"])
+            self.assertEqual(len(report["steps"]), 1, "the record survives the revocation")
+
+    def test_revoking_what_was_never_given_is_refused(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            self.run_cli(workspace, "init")
+            refused = self.run_cli(
+                workspace, "studio", "revoke-mandate", "--mission", "cat-coins",
+                "--actor", "Miha", "--language", "en")
+            self.assertNotEqual(refused.returncode, 0)
+            self.assertIn("no live mandate", refused.stdout + refused.stderr)
