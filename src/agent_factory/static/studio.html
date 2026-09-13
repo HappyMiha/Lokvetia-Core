@@ -42,6 +42,28 @@
       <p id="plan-empty" hidden data-i18n="studio.plan.empty">Плану ще немає.</p>
     </section>
 
+    <section class="card" aria-labelledby="run-title">
+      <div class="card-head">
+        <h2 id="run-title" data-i18n="studio.run.title">Хто веде роботу</h2>
+        <p class="next" id="run-state"></p>
+      </div>
+      <dl class="money" id="run-mandate"></dl>
+      <form class="loop" id="run-form" autocomplete="off">
+        <label for="run-actor"><span data-i18n="studio.loop.who">Ваше імʼя</span></label>
+        <input id="run-actor" type="text" maxlength="120">
+        <label for="run-ceiling"><span data-i18n="studio.run.ceiling">Стеля витрат</span></label>
+        <input id="run-ceiling" type="number" min="0" step="0.5" value="20">
+        <div class="loop-actions">
+          <button type="button" id="run-grant" data-i18n="studio.run.grant">Доручити студії</button>
+          <button type="button" id="run-revoke" data-i18n="studio.run.revoke" hidden>Відкликати доручення</button>
+        </div>
+        <p class="result" id="run-result" role="status"></p>
+      </form>
+      <h3 data-i18n="studio.run.steps">Що вона вже зробила</h3>
+      <ul class="comments" id="run-steps"></ul>
+      <p id="run-empty" hidden data-i18n="studio.run.nothing">Поки що вона тут нічого не робила.</p>
+    </section>
+
     <section class="card" aria-labelledby="questions-title">
       <h2 id="questions-title" data-i18n="studio.questions.title">Що вирішуєте ви</h2>
       <ul class="questions" id="questions"></ul>

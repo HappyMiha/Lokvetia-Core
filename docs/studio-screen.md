@@ -5,7 +5,7 @@ line. This is the page a person actually uses: `/studio`, in Ukrainian or
 English.
 
 Requirement trace: the interface halves of `AF-ST-401`, `AF-ST-601`,
-`AF-ST-801`, `AF-ST-901`, `AF-ST-201` and `AF-ST-701`. None is labelled
+`AF-ST-801`, `AF-ST-901`, `AF-ST-201`, `AF-ST-701` and `AF-ST-301`. None is labelled
 accepted here.
 
 ## What is on it
@@ -14,6 +14,11 @@ accepted here.
   words, the role leading it where one is recorded, and one line for what
   happens next. A stage that produced a playable slice offers Play; a stage
   that did not says out loud that there is nothing to test yet.
+- **Who is driving the work** — whether anyone has asked the studio to run this
+  game on its own, what that mandate allows, until when, up to how much, and
+  every step the studio has taken here. Handing it the keys takes two clicks on
+  purpose: the first spells out that it will then act in your name, the second
+  does it. Taking them back leaves everything it already did on the screen.
 - **Yours to decide** — every question waiting on a person in one place: an
   autonomy question, a paid tool with its ways out, a spending limit reached.
   When there is nothing, it says so rather than showing an empty box.
@@ -61,3 +66,7 @@ laptop width, alongside the other pages.
   role-model`.
 - **The Play link points at the local games page** with the version digest; the
   page that runs a specific slice is separate work.
+- **Creating a game does not hand the studio the keys.** The intake writes the
+  mission; the mandate is a separate, named act on this screen, because granting
+  one on a person's behalf is exactly what a mandate exists to prevent. See
+  [The studio starts the work itself](studio-supervisor.md).

@@ -19,6 +19,7 @@ from .studio_cost import COST_MIGRATION
 from .studio_paid_tools import PAID_TOOL_MIGRATION
 from .studio_roster import ROSTER_MIGRATION
 from .studio_first_run import FIRST_RUN_MIGRATION
+from .studio_supervisor import SUPERVISOR_MIGRATION
 from .studio_workers import WORKER_MIGRATION
 from .studio_cycles import CYCLE_MIGRATION
 from .studio_slices import SLICE_MIGRATION
@@ -6622,6 +6623,7 @@ MIGRATIONS: tuple[tuple[int, str], ...] = (
     (86, ROSTER_MIGRATION),
     (87, WORKER_MIGRATION),
     (88, FIRST_RUN_MIGRATION),
+    (89, SUPERVISOR_MIGRATION),
 )
 
 RUN_TRANSITIONS = TRANSITIONS["run"]

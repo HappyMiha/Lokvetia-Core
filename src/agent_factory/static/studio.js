@@ -306,6 +306,33 @@
     }));
   }
 
+  function showRun(run) {
+    const mandate = run.mandate && run.mandate.live ? run.mandate : null;
+    byId('run-state').textContent = run.summary || say('studio.run.nobody');
+    const rows = [];
+    if (mandate) {
+      rows.push([say('studio.run.may'), mandate.steps.join(', ')]);
+      rows.push([say('studio.run.until'), mandate.expires_at]);
+      if (mandate.ceiling !== null && mandate.ceiling !== undefined) {
+        rows.push([say('studio.run.ceiling'), `${mandate.ceiling} ${mandate.unit}`]);
+      }
+    }
+    replace(byId('run-mandate'), rows.flatMap(([term, value]) => [
+      element('dt', term), element('dd', value),
+    ]));
+    byId('run-grant').hidden = Boolean(mandate);
+    byId('run-revoke').hidden = !mandate;
+    byId('run-ceiling').parentElement.hidden = Boolean(mandate);
+    const steps = run.steps || [];
+    replace(byId('run-steps'), steps.map(step => {
+      const entry = element('li');
+      entry.append(element('strong', step.summary));
+      if (step.detail) entry.append(element('span', ` — ${step.detail}`));
+      return entry;
+    }));
+    byId('run-empty').hidden = steps.length > 0;
+  }
+
   async function load() {
     state.mission = byId('mission').value.trim() || state.mission;
     // Two loads can overlap - switching game while the first is still in
@@ -313,7 +340,7 @@
     // game quietly replaces what is on the screen.
     const generation = ++state.generation;
     try {
-      const [first, plan, decisions, tools, money, roster, cycles, machines] =
+      const [first, plan, decisions, tools, money, roster, cycles, machines, run] =
         await Promise.all([
           maybe('/api/studio/first-run', {can_start: true, summary: ''}),
           maybe(`/api/studio/plan/${encodeURIComponent(state.mission)}`, {stages: []}),
@@ -323,6 +350,8 @@
           maybe(`/api/studio/roster/${encodeURIComponent(state.mission)}`, {roles: []}),
           maybe(`/api/studio/cycles/${encodeURIComponent(state.mission)}`, {cycle: 1, state: 'running'}),
           maybe('/api/studio/machines', {machines: []}),
+          maybe(`/api/studio/supervisor/${encodeURIComponent(state.mission)}`,
+                {mandate: null, steps: [], summary: ''}),
         ]);
       if (generation !== state.generation) return;
       byId('start-blocked').hidden = Boolean(first.can_start);
@@ -332,6 +361,7 @@
       showTeam(roster);
       showLoop(cycles);
       showMachines(machines);
+      showRun(run);
       byId('summary').textContent = first.can_start
         ? (plan.next || say('studio.plan.empty'))
         : first.summary;
@@ -371,6 +401,44 @@
     }
   }
 
+  // Handing the studio the keys takes two clicks on purpose: the first says what
+  // it will then do in the person's name, the second does it.
+  async function delegate(action) {
+    const result = byId('run-result');
+    const who = byId('run-actor').value.trim();
+    if (!who) {
+      result.textContent = say('studio.loop.need-name');
+      byId('run-actor').focus();
+      return;
+    }
+    const mission = encodeURIComponent(state.mission);
+    const grant = byId('run-grant');
+    if (action === 'grant' && grant.dataset.armed !== 'yes') {
+      grant.dataset.armed = 'yes';
+      grant.textContent = say('studio.run.confirm');
+      result.textContent = say('studio.run.consequence');
+      return;
+    }
+    try {
+      if (action === 'grant') {
+        const ceiling = Number(byId('run-ceiling').value);
+        await post(`/api/studio/supervisor/${mission}`, {
+          actor: who, steps: ['plan'],
+          ceiling: Number.isFinite(ceiling) && ceiling > 0 ? ceiling : null,
+        });
+      } else {
+        await post(`/api/studio/supervisor/${mission}/revoke`, {actor: who});
+      }
+      result.textContent = '';
+      await load();
+    } catch (error) {
+      result.textContent = say('studio.error', {message: error.message});
+    } finally {
+      grant.dataset.armed = '';
+      grant.textContent = say('studio.run.grant');
+    }
+  }
+
   function start() {
     byId('refresh').addEventListener('click', () => load());
     byId('mission').addEventListener('change', () => {
@@ -380,6 +448,8 @@
     byId('pause').addEventListener('click', () => act('pause'));
     byId('resume').addEventListener('click', () => act('resume'));
     byId('send').addEventListener('click', () => act('send'));
+    byId('run-grant').addEventListener('click', () => delegate('grant'));
+    byId('run-revoke').addEventListener('click', () => delegate('revoke'));
     loadMessages().then(load).catch(error => {
       byId('summary').textContent = say('studio.error', {message: error.message});
     });

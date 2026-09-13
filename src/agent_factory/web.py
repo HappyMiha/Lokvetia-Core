@@ -354,6 +354,21 @@ class ConnectSourceCommand(ConfirmedCommand):
     connected_by: str = Field(default="", max_length=120)
 
 
+class MandateCommand(ConfirmedCommand):
+    """What a named person allows the studio to do here without asking again."""
+
+    actor: str = Field(min_length=1, max_length=120)
+    steps: list[str] = Field(default_factory=list, max_length=8)
+    ceiling: float | None = Field(default=None, ge=0)
+    unit: str = Field(default="USD", max_length=8)
+    hours: float = Field(default=24.0, gt=0, le=24 * 30)
+    reason: str = Field(default="", max_length=500)
+
+
+class RevokeMandateCommand(ConfirmedCommand):
+    actor: str = Field(min_length=1, max_length=120)
+
+
 class RosterCommand(ConfirmedCommand):
     actor: str = Field(min_length=1, max_length=120)
     provider: str = Field(default="", max_length=60)
@@ -1456,6 +1471,66 @@ def create_app(workspace: Path, database: Path, *, environment_probes=None, cred
         except WorkerRefused as exc:
             return studio_error(exc, language, "machine_refused")
         return machine.record(language)
+
+    def studio_supervisor(service: Service):
+        from .studio_supervisor import Supervisor
+
+        return Supervisor(service.storage)
+
+    @app.get("/api/studio/supervisor/{mission_key}", response_model=dict[str, Any])
+    async def studio_supervisor_state(
+        mission_key: str, request: Request, service: Service, lang: str | None = None
+    ) -> Any:
+        """Whether the studio is running this game on its own, and what it did."""
+        return studio_supervisor(service).report(
+            mission_key, language=chosen_language(request, lang),
+        )
+
+    @app.post("/api/studio/supervisor/{mission_key}", response_model=dict[str, Any])
+    async def studio_grant_mandate(
+        mission_key: str,
+        command: MandateCommand,
+        request: Request,
+        service: Service,
+        confirmation: Confirmation = None,
+        lang: str | None = None,
+    ) -> Any:
+        """Let the studio work on this game without being asked each time."""
+        from .studio_supervisor import SupervisorRefused
+
+        _require_confirmation(command, confirmation)
+        language = chosen_language(request, lang)
+        try:
+            mandate = studio_supervisor(service).grant(
+                mission_key, steps=command.steps or ("plan",),
+                granted_by=command.actor, ceiling=command.ceiling,
+                unit=command.unit, hours=command.hours, reason=command.reason,
+            )
+        except SupervisorRefused as exc:
+            return studio_error(exc, language, "mandate_refused")
+        return mandate.record(language)
+
+    @app.post("/api/studio/supervisor/{mission_key}/revoke",
+              response_model=dict[str, Any])
+    async def studio_revoke_mandate(
+        mission_key: str,
+        command: RevokeMandateCommand,
+        request: Request,
+        service: Service,
+        confirmation: Confirmation = None,
+        lang: str | None = None,
+    ) -> Any:
+        """Stop the studio starting anything else here, keeping what it did."""
+        from .studio_supervisor import SupervisorRefused
+
+        _require_confirmation(command, confirmation)
+        language = chosen_language(request, lang)
+        try:
+            mandate = studio_supervisor(service).revoke(
+                mission_key, actor=command.actor)
+        except SupervisorRefused as exc:
+            return studio_error(exc, language, "mandate_refused")
+        return mandate.record(language)
 
     @app.get("/api/studio/first-run", response_model=dict[str, Any])
     async def studio_first_run_state(

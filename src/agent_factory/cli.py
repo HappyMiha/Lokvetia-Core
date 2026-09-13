@@ -16,6 +16,7 @@ from typing import Any
 from .backlog import BacklogProposal, diff_issues, issue_operations, load_backlog
 from .github import GitHubClient
 from .storage import SQLiteStorage
+from .studio_supervisor import STEPS as SUPERVISOR_STEPS
 
 
 def _version() -> str:
@@ -552,6 +553,43 @@ def parser() -> argparse.ArgumentParser:
     studio_connect.add_argument("--machine", default="")
     studio_connect.add_argument("--needed-gb", type=float, default=0.0)
     studio_connect.add_argument("--language", default="uk", choices=("uk", "en"))
+    studio_mandate = studio_command.add_parser(
+        "mandate", help="Let the studio run this game without asking again."
+    )
+    studio_mandate.add_argument("--mission", required=True)
+    studio_mandate.add_argument("--actor", required=True)
+    studio_mandate.add_argument(
+        "--allow", action="append", default=[], choices=SUPERVISOR_STEPS,
+        help="A step the studio may take on its own. Repeat for more than one.")
+    studio_mandate.add_argument("--ceiling", type=float, default=None,
+                                help="How much it may spend unattended.")
+    studio_mandate.add_argument("--unit", default="USD")
+    studio_mandate.add_argument("--hours", type=float, default=24.0)
+    studio_mandate.add_argument("--reason", default="")
+    studio_mandate.add_argument("--language", default="uk", choices=("uk", "en"))
+    studio_revoke = studio_command.add_parser(
+        "revoke-mandate", help="Stop the studio starting anything else here."
+    )
+    studio_revoke.add_argument("--mission", required=True)
+    studio_revoke.add_argument("--actor", required=True)
+    studio_revoke.add_argument("--language", default="uk", choices=("uk", "en"))
+    studio_run = studio_command.add_parser(
+        "run", help="Move this game as far as the mandate allows."
+    )
+    studio_run.add_argument("--mission", required=True)
+    studio_run.add_argument("--mission-id", type=int, required=True,
+                            help="The Core mission this game is.")
+    studio_run.add_argument("--once", action="store_true",
+                            help="One step, then stop and report.")
+    studio_run.add_argument("--passes", type=int, default=8)
+    studio_run.add_argument("--next-step-cost", type=float, default=0.0)
+    studio_run.add_argument("--language", default="uk", choices=("uk", "en"))
+    studio_steps = studio_command.add_parser(
+        "steps", help="What the studio did here on its own, and why it stopped."
+    )
+    studio_steps.add_argument("--mission", required=True)
+    studio_steps.add_argument("--limit", type=int, default=20)
+    studio_steps.add_argument("--language", default="uk", choices=("uk", "en"))
     studio_answer = studio_command.add_parser("answer", help="Answer one open question.")
     studio_answer.add_argument("--question", type=int, required=True)
     studio_answer.add_argument("--answer", required=True)
@@ -1613,6 +1651,46 @@ def _execute(args: argparse.Namespace) -> int:
                     capabilities=args.can, video_memory_gb=args.video_memory_gb,
                     registered_by=args.actor,
                 ).record(args.language), indent=2, ensure_ascii=False))
+            elif args.action == "mandate":
+                from .studio_supervisor import Supervisor
+
+                mandate = Supervisor(storage).grant(
+                    args.mission, steps=args.allow or ("plan",), granted_by=args.actor,
+                    ceiling=args.ceiling, unit=args.unit, hours=args.hours,
+                    reason=args.reason,
+                )
+                print(json.dumps(mandate.record(args.language), indent=2,
+                                 ensure_ascii=False))
+            elif args.action == "revoke-mandate":
+                from .studio_supervisor import Supervisor
+
+                print(json.dumps(Supervisor(storage).revoke(
+                    args.mission, actor=args.actor,
+                ).record(args.language), indent=2, ensure_ascii=False))
+            elif args.action == "steps":
+                from .studio_supervisor import Supervisor
+
+                print(json.dumps(Supervisor(storage).report(
+                    args.mission, language=args.language, limit=args.limit,
+                ), indent=2, ensure_ascii=False))
+            elif args.action == "run":
+                from .studio_supervisor import CoreMissionDriver, Supervisor
+
+                supervisor = Supervisor(storage)
+                driver = CoreMissionDriver(storage, args.mission_id,
+                                           workspace=workspace)
+                taken = (
+                    (supervisor.advance(args.mission, driver,
+                                        next_step_cost=args.next_step_cost),)
+                    if args.once else
+                    supervisor.run(args.mission, driver, passes=args.passes,
+                                   next_step_cost=args.next_step_cost)
+                )
+                print(json.dumps([step.record(args.language) for step in taken],
+                                 indent=2, ensure_ascii=False))
+                # The exit code is about the person, not about success: 3 means
+                # the studio cannot go further without them.
+                return 3 if any(step.needs_person for step in taken) else 0
             elif args.action == "first-run":
                 from .studio_first_run import FirstRun
 

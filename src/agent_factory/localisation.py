@@ -364,6 +364,29 @@ CATALOGUE: Mapping[str, Message] = {
     "studio.loop.paused": Message("На паузі", "Paused"),
     "studio.loop.running": Message("Працює", "Running"),
     "studio.loop.cycle": Message("Цикл {number}", "Cycle {number}"),
+    "studio.run.title": Message("Хто веде роботу", "Who is driving the work"),
+    "studio.run.nobody": Message(
+        "Ніхто не доручив студії вести цю гру самостійно.",
+        "Nobody has asked the studio to run this game on its own.",
+    ),
+    "studio.run.may": Message("Дозволено", "Allowed"),
+    "studio.run.ceiling": Message("Стеля витрат", "Spending ceiling"),
+    "studio.run.until": Message("Діє до", "In force until"),
+    "studio.run.grant": Message("Доручити студії", "Let the studio run it"),
+    "studio.run.confirm": Message("Так, доручити", "Yes, let it run"),
+    "studio.run.revoke": Message("Відкликати доручення", "Take the mandate back"),
+    "studio.run.consequence": Message(
+        "Студія почне планувати цю гру сама, підписуючи кожен крок вашим імʼям і "
+        "цим дорученням. Вона зупиниться на питанні, на межі витрат і на будь-чому "
+        "поза дорученням.",
+        "The studio will start planning this game itself, signing every step with "
+        "your name and this mandate. It stops at a question, at the spending edge "
+        "and at anything the mandate does not cover.",
+    ),
+    "studio.run.steps": Message("Що вона вже зробила", "What it has already done"),
+    "studio.run.nothing": Message(
+        "Поки що вона тут нічого не робила.", "It has not done anything here yet.",
+    ),
     "studio.machines.title": Message("Де це виконується", "Where this runs"),
     "studio.machines.nobuild": Message(
         "тут ігри не збираються", "games are not built here",
