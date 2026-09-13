@@ -359,6 +359,7 @@ See:
 - [Implementation audit (2026-08-11)](docs/implementation-audit-2026-08-11.md)
 - [Implementation release notes (2026-08-11)](docs/release-notes-2026-08-11.md)
 - [Godot 2D game pack and engine adapter](docs/godot-pack.md)
+- [Local platformer: text → EXE → double-jump revision → EXE](docs/godot-prototype-cycle.md) ([Українська](docs/godot-prototype-cycle.uk.md))
 - [Support levels and honest scoping](docs/capability-levels.md)
 - [Unity setup and build adapter](docs/unity-setup.md)
 - [Latest verified playable version](docs/playable-versions.md)
