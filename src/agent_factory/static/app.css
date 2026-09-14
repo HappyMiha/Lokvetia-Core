@@ -1,0 +1,363 @@
+/* One system for every screen a person uses.
+
+   Before this file each page invented its own spacing, its own button, its own
+   idea of what "in progress" looks like, and half of them were dark while the
+   other half were light. Nothing here is decoration: every token exists because
+   two pages disagreed about it.
+
+   Rules this file keeps so a new screen inherits them instead of rediscovering
+   them: text meets AA contrast at its size, every control is at least 24x24,
+   focus is always visible, and nothing is ever wider than the window. */
+
+:root {
+  /* Ink on paper. The teal is the product's, kept from the original mark. */
+  --ink: #0f2b33;
+  --ink-soft: #465d64;
+  --ink-faint: #64797f;
+  --paper: #f3f6f5;
+  --surface: #ffffff;
+  --surface-sunk: #eef3f1;
+  --line: #dbe5e2;
+  --line-strong: #b9cac5;
+  --accent: #12604f;
+  --accent-deep: #0d4a3c;
+  --accent-soft: #e4f0eb;
+  --focus: #9a520c;
+
+  /* One vocabulary for state, used by every chip, bar and dot in the product. */
+  --done: #14603f;
+  --done-soft: #e0f0e7;
+  --running: #7c4708;
+  --running-soft: #fbeedb;
+  --blocked: #962f26;
+  --blocked-soft: #fbe6e3;
+  --planned: #465d64;
+  --planned-soft: #e9eeed;
+
+  /* A fifth of a rem apart, so sizes stay related instead of arbitrary. */
+  --text-xs: .75rem;
+  --text-sm: .8125rem;
+  --text-base: .9375rem;
+  --text-md: 1.0625rem;
+  --text-lg: 1.375rem;
+  --text-xl: 2rem;
+  --text-2xl: 2.75rem;
+
+  --s1: .25rem;
+  --s2: .5rem;
+  --s3: .75rem;
+  --s4: 1rem;
+  --s5: 1.5rem;
+  --s6: 2rem;
+  --s7: 3rem;
+  --s8: 4rem;
+
+  --radius: .75rem;
+  --radius-sm: .5rem;
+  --shadow: 0 1px 2px rgba(15, 43, 51, .04), 0 8px 24px rgba(15, 43, 51, .05);
+  --wrap: 62rem;
+}
+
+/* ----------------------------------------------------------------- base */
+
+/* Padding inside the box, not added to it. Without this a field with padding is
+   wider than the card that holds it, which is exactly how it looked. */
+.app, .app *, .app *::before, .app *::after { box-sizing: border-box; }
+
+.app {
+  margin: 0;
+  color: var(--ink);
+  background: var(--paper);
+  font: var(--text-base)/1.55 "Segoe UI Variable Text", "Segoe UI", system-ui,
+        -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  text-size-adjust: 100%;
+}
+
+/* Several components here set display, which silently beats the hidden
+   attribute. Every "hidden" state in this product goes through that attribute,
+   so it wins once, here, instead of each page remembering to hide by class. */
+.app [hidden] { display: none !important; }
+
+.app :is(h1, h2, h3, h4) { margin: 0; color: var(--ink); font-weight: 700; line-height: 1.2; }
+.app h1 { font-size: var(--text-xl); letter-spacing: -.03em; }
+.app h2 { font-size: var(--text-md); letter-spacing: -.01em; }
+.app h3 { font-size: var(--text-base); }
+.app p { margin: 0; }
+.app :is(p, li, dd, dt, td, th, figcaption) { overflow-wrap: anywhere; }
+
+.app summary { min-height: 24px; padding-block: 2px; }
+.app a { color: var(--accent); text-underline-offset: .2em; }
+.app a:hover { color: var(--accent-deep); }
+
+.app :is(a, button, input, textarea, select, summary, [tabindex]):focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app *, .app *::before, .app *::after {
+    animation: none !important; transition: none !important; scroll-behavior: auto !important;
+  }
+}
+
+/* --------------------------------------------------------------- header */
+
+.skip {
+  position: absolute;
+  left: var(--s3);
+  top: var(--s3);
+  z-index: 30;
+  padding: var(--s2) var(--s3);
+  background: var(--surface);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-sm);
+  transform: translateY(-250%);
+  transition: transform 120ms ease;
+}
+.skip:focus { transform: none; }
+
+.app-header {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s3) var(--s5);
+  padding: var(--s3) max(var(--s4), calc((100vw - var(--wrap)) / 2));
+  background: rgba(255, 255, 255, .92);
+  backdrop-filter: blur(8px);
+  border-bottom: 1px solid var(--line);
+}
+.app-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s2);
+  min-width: 0;
+  color: var(--ink);
+  font-size: var(--text-md);
+  font-weight: 750;
+  letter-spacing: -.03em;
+  text-decoration: none;
+}
+.app-brand img { display: block; width: 32px; height: 32px; flex: none; }
+.app-nav { display: flex; flex-wrap: wrap; gap: var(--s1) var(--s2); margin-inline-start: auto; }
+.app-nav a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  padding: 0 var(--s3);
+  border-radius: 999px;
+  color: var(--ink-soft);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  text-decoration: none;
+}
+.app-nav a:hover { background: var(--surface-sunk); color: var(--ink); }
+.app-nav a[aria-current="page"] { background: var(--accent-soft); color: var(--accent-deep); }
+.app-lang { display: flex; gap: var(--s1); }
+.app-lang a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  min-width: 32px;
+  justify-content: center;
+  border-radius: 999px;
+  color: var(--ink-faint);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  text-decoration: none;
+  text-transform: uppercase;
+}
+.app-lang a[aria-current="true"] { background: var(--accent-soft); color: var(--accent-deep); }
+
+/* ----------------------------------------------------------------- shell */
+
+.app-main { max-width: var(--wrap); margin: 0 auto; padding: var(--s6) var(--s4) var(--s8); }
+.app-foot {
+  max-width: var(--wrap);
+  margin: 0 auto;
+  padding: var(--s5) var(--s4) var(--s6);
+  border-top: 1px solid var(--line);
+  color: var(--ink-faint);
+  font-size: var(--text-xs);
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s2) var(--s5);
+  justify-content: space-between;
+}
+/* Small print is still text a person has to read, and a link is still a target
+   a person has to hit: AA contrast and a 24px height apply here too. */
+.app-foot a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  color: var(--ink-soft);
+}
+
+.eyebrow {
+  display: block;
+  margin-bottom: var(--s2);
+  color: var(--accent);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+}
+.lede { margin-top: var(--s2); color: var(--ink-soft); font-size: var(--text-md); }
+.muted { color: var(--ink-soft); }
+.small { font-size: var(--text-sm); }
+
+/* ----------------------------------------------------------------- cards */
+
+.card {
+  padding: var(--s5);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+.card + .card { margin-top: var(--s4); }
+.card-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s2) var(--s4);
+  margin-bottom: var(--s4);
+}
+.card-head p { color: var(--ink-soft); font-size: var(--text-sm); }
+.stack { display: grid; gap: var(--s4); }
+.stack-tight { display: grid; gap: var(--s2); }
+.row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s2) var(--s3); }
+
+/* ----------------------------------------------------------------- chips */
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s1);
+  padding: .15rem var(--s2);
+  border-radius: 999px;
+  font-size: var(--text-xs);
+  font-weight: 700;
+  white-space: nowrap;
+}
+.chip--done { color: var(--done); background: var(--done-soft); }
+.chip--in_progress, .chip--running { color: var(--running); background: var(--running-soft); }
+.chip--blocked { color: var(--blocked); background: var(--blocked-soft); }
+.chip--planned, .chip--paused { color: var(--planned); background: var(--planned-soft); }
+
+/* --------------------------------------------------------------- buttons */
+
+.app a.btn { text-decoration: none; }
+.app .btn, .app a.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s2);
+  min-height: 2.5rem;
+  padding: 0 var(--s4);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  font-weight: 650;
+  cursor: pointer;
+  transition: background-color 140ms ease, border-color 140ms ease;
+}
+.btn:hover:not(:disabled) { background: var(--surface-sunk); border-color: var(--line-strong); }
+.btn:disabled { opacity: .55; cursor: not-allowed; }
+.app .btn--primary, .app a.btn--primary {
+  background: var(--accent); border-color: var(--accent); color: #fff;
+}
+.app .btn--primary:hover:not(:disabled), .app a.btn--primary:hover {
+  background: var(--accent-deep); border-color: var(--accent-deep); color: #fff;
+}
+.app .btn--quiet { border-color: transparent; background: transparent; color: var(--accent); }
+.app .btn--quiet:hover:not(:disabled) { background: var(--accent-soft); }
+.btn--big { min-height: 3rem; padding-inline: var(--s5); font-size: var(--text-md); }
+
+/* ---------------------------------------------------------------- fields */
+
+.field { display: grid; gap: var(--s1); }
+.field > span { font-size: var(--text-sm); font-weight: 650; }
+.field :is(input, select, textarea) {
+  width: 100%;
+  min-height: 2.5rem;
+  padding: var(--s2) var(--s3);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+}
+.field :is(input, select, textarea)::placeholder { color: var(--ink-faint); }
+.field .hint { color: var(--ink-soft); font-size: var(--text-xs); }
+
+/* ----------------------------------------------------------------- stats */
+
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(8rem, 100%), 1fr)); gap: var(--s4); }
+.stat { display: grid; gap: var(--s1); }
+.stat dt { color: var(--ink-soft); font-size: var(--text-xs); font-weight: 650; text-transform: uppercase; letter-spacing: .06em; }
+.stat dd { margin: 0; font-size: var(--text-lg); font-weight: 700; letter-spacing: -.02em; }
+
+.meter { height: .5rem; border-radius: 999px; background: var(--surface-sunk); overflow: hidden; display: flex; }
+.meter span { display: block; height: 100%; }
+.meter .spent { background: var(--accent); }
+.meter .reserved { background: var(--running); opacity: .55; }
+
+/* ------------------------------------------------------------ empty/note */
+
+.empty {
+  padding: var(--s5);
+  border: 1px dashed var(--line-strong);
+  border-radius: var(--radius);
+  background: var(--surface-sunk);
+  color: var(--ink-soft);
+  text-align: center;
+}
+.empty strong { display: block; margin-bottom: var(--s1); color: var(--ink); }
+
+.note {
+  display: grid;
+  gap: var(--s1);
+  padding: var(--s3) var(--s4);
+  border-radius: var(--radius-sm);
+  border-inline-start: 3px solid var(--planned);
+  background: var(--planned-soft);
+  font-size: var(--text-sm);
+}
+.note--warn { border-color: var(--running); background: var(--running-soft); }
+.note--stop { border-color: var(--blocked); background: var(--blocked-soft); }
+.note--good { border-color: var(--done); background: var(--done-soft); }
+
+/* ---------------------------------------------------------------- tables */
+
+.scroller { overflow-x: auto; max-width: 100%; }
+.scroller:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+.app table { width: 100%; min-width: 22rem; border-collapse: collapse; font-size: var(--text-sm); }
+.app :is(th, td) {
+  padding: var(--s2) var(--s3);
+  text-align: start;
+  border-bottom: 1px solid var(--line);
+  vertical-align: top;
+}
+.app th { color: var(--ink-soft); font-size: var(--text-xs); text-transform: uppercase; letter-spacing: .06em; }
+.app tr:last-child :is(th, td) { border-bottom: 0; }
+
+/* ----------------------------------------------------------------- phone */
+
+@media (max-width: 40rem) {
+  :root { --text-xl: 1.625rem; --text-2xl: 2rem; }
+  .app-main { padding: var(--s5) var(--s3) var(--s7); }
+  .app-header { padding-inline: var(--s3); gap: var(--s2); }
+  .app-nav { margin-inline-start: 0; width: 100%; order: 3; }
+  .app-lang { margin-inline-start: auto; }
+  .card { padding: var(--s4); }
+  .btn { width: 100%; }
+  .row > .btn { width: auto; flex: 1 1 8rem; }
+}

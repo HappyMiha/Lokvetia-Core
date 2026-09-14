@@ -3,132 +3,180 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Студія · Lokvetia Core</title>
+  <title>Моя гра · Lokvetia Core</title>
+  <link rel="stylesheet" href="/assets/app.css">
   <link rel="stylesheet" href="/assets/studio.css">
   <script src="/assets/studio.js" defer></script>
 <meta name="theme-color" content="#102C35"><meta name="description" content="Lokvetia Core — local AI agent orchestration with human control."><link rel="icon" href="/assets/brand-mark.svg" type="image/svg+xml"><link rel="stylesheet" href="/assets/brand.css"></head>
-<body class="brand-core page-studio">
-  <a class="skip" href="#main" data-i18n="nav.skip">До вмісту</a>
-  <header>
-    <a class="brand" href="/" aria-label="Lokvetia Core"><img class="brand-symbol" src="/assets/brand-mark.svg" alt="" width="40" height="40"><span class="brand-name">Lokvetia Core</span></a>
-    <nav data-i18n-attr="aria-label:nav.aria" aria-label="Навігація"><a href="/" data-i18n="nav.games">Мої ігри</a><a href="/work" data-i18n="nav.progress">Хід роботи</a><a href="/settings" data-i18n="nav.settings">Налаштування</a><a href="/operations" data-i18n="nav.operations">Панель оператора</a><a href="/login" data-i18n="nav.login">Доступ і вихід</a></nav>
+<body class="app page-studio">
+  <a id="skip" class="skip" href="#main" data-i18n="nav.skip">До вмісту</a>
+  <header class="app-header">
+    <a class="app-brand" href="/" aria-label="Lokvetia Core"><img src="/assets/brand-mark.svg" alt="" width="32" height="32">Lokvetia&nbsp;Core</a>
+    <nav class="app-nav" data-i18n-attr="aria-label:nav.aria" aria-label="Навігація">
+      <a href="/" data-i18n="nav.games">Мої ігри</a>
+      <a href="/settings" data-i18n="nav.settings">Налаштування</a>
+    </nav>
+    <nav class="app-lang" data-i18n-attr="aria-label:language.label" aria-label="Мова">
+      <a href="?lang=uk" data-lang="uk" hreflang="uk">ук</a>
+      <a href="?lang=en" data-lang="en" hreflang="en">en</a>
+    </nav>
   </header>
-  <main id="main">
-    <section class="intro" aria-labelledby="title">
-      <p class="eyebrow" data-i18n="studio.eyebrow">Ваша гра</p>
-      <h1 id="title" data-i18n="studio.title">Студія</h1>
-      <p class="lead" data-i18n="studio.lead">Що студія робить зараз.</p>
-      <p id="summary" role="status" aria-live="polite" data-i18n="common.loading">Завантаження…</p>
-      <nav class="languages" data-i18n-attr="aria-label:language.label" aria-label="Мова">
-        <a href="?lang=uk" data-lang="uk" data-i18n="language.uk">Українська</a>
-        <a href="?lang=en" data-lang="en" data-i18n="language.en">Англійська</a>
-      </nav>
+
+  <main class="app-main" id="main">
+    <!-- The hero answers the only question a person opens this page with:
+         what is happening to my game right now, and is anything waiting on me. -->
+    <section class="hero card" aria-labelledby="title">
+      <div class="hero-top">
+        <div class="hero-name">
+          <p class="eyebrow" data-i18n="studio.eyebrow">Ваша гра</p>
+          <h1 id="title">—</h1>
+        </div>
+        <label class="field hero-pick" for="mission">
+          <span data-i18n="studio.mission.label">Гра</span>
+          <select id="mission"></select>
+        </label>
+      </div>
+      <p class="hero-now" id="summary" role="status" aria-live="polite" data-i18n="common.loading">Завантаження…</p>
+      <div class="hero-meter">
+        <div class="meter" id="progress-meter" role="img" aria-labelledby="progress-text"><span class="spent" style="width:0"></span></div>
+        <p class="small muted" id="progress-text"></p>
+      </div>
+      <div class="row hero-actions" id="hero-actions"></div>
+      <p class="note note--stop" id="start-blocked" hidden data-i18n="studio.start.blocked">Розробка не почнеться без джерела.</p>
     </section>
 
+    <!-- Starting a game lives here because this is where a person ends up when
+         they have none yet: the button stays off until something can actually
+         do the work, and says what is missing. -->
     <section class="card" aria-labelledby="create-title">
-      <h2 id="create-title" data-i18n="studio.create.title">Почати нову гру</h2>
-      <p data-i18n="studio.create.scope">Локальна модель складе план. Автоматична розробка й збірка ще не підключені.</p>
+      <div class="card-head">
+        <h2 id="create-title" data-i18n="studio.create.title">Почати нову гру</h2>
+        <p data-i18n="studio.create.scope">Локальна модель складе план. Автоматична розробка й збірка ще не підключені.</p>
+      </div>
       <form id="create-form">
-        <label for="game-title" data-i18n="studio.create.name">Назва гри</label>
-        <input id="game-title" required maxlength="160">
-        <label for="game-idea" data-i18n="studio.create.idea">Опишіть гру</label>
-        <textarea id="game-idea" required maxlength="6000" rows="4"></textarea>
-        <p data-i18n="studio.create.consent">Кнопка запускає планування локально з нульовим лімітом платних запитів.</p>
-        <p id="create-readiness" role="status" aria-live="polite"></p>
-        <button id="create-game" type="submit" disabled aria-describedby="create-readiness" data-i18n="studio.create.start">Почати планування</button>
-        <a href="/settings/credentials" data-i18n="studio.create.setup">Підключення провайдерів</a>
-        <p id="create-result" role="status" aria-live="polite"></p>
+        <label class="field" for="game-title">
+          <span data-i18n="studio.create.name">Назва гри</span>
+          <input id="game-title" required maxlength="160">
+        </label>
+        <label class="field" for="game-idea">
+          <span data-i18n="studio.create.idea">Опишіть гру</span>
+          <textarea id="game-idea" required maxlength="6000" rows="4"></textarea>
+        </label>
+        <p class="small muted" data-i18n="studio.create.consent">Кнопка запускає планування локально з нульовим лімітом платних запитів.</p>
+        <p class="small" id="create-readiness" role="status" aria-live="polite"></p>
+        <div class="row">
+          <button id="create-game" type="submit" class="btn btn--primary" disabled aria-describedby="create-readiness" data-i18n="studio.create.start">Почати планування</button>
+          <a class="btn btn--quiet" href="/settings/credentials" data-i18n="studio.create.setup">Підключення провайдерів</a>
+        </div>
+        <p class="small" id="create-result" role="status" aria-live="polite"></p>
       </form>
     </section>
 
-    <form class="picker" id="picker-form" autocomplete="off">
-      <label for="mission"><span data-i18n="studio.mission.label">Гра</span></label>
-      <input id="mission" type="text" maxlength="120" value="cat-coins">
-      <button type="button" id="refresh" data-i18n="common.refresh">Оновити</button>
-    </form>
-
-    <p id="start-blocked" class="warn" hidden data-i18n="studio.start.blocked">Розробка не почнеться без джерела.</p>
+    <section class="card" id="questions-card" aria-labelledby="questions-title" hidden>
+      <div class="card-head">
+        <h2 id="questions-title" data-i18n="studio.questions.title">Що вирішуєте ви</h2>
+      </div>
+      <ul class="questions" id="questions"></ul>
+    </section>
 
     <section class="card" aria-labelledby="plan-title">
       <div class="card-head">
         <h2 id="plan-title" data-i18n="studio.plan.title">План роботи</h2>
-        <p class="next"><strong data-i18n="studio.plan.next">Далі</strong>: <span id="next"></span></p>
+        <p><strong data-i18n="studio.plan.next">Далі</strong>: <span id="next"></span></p>
       </div>
       <div id="stages"></div>
-      <p id="plan-empty" hidden data-i18n="studio.plan.empty">Плану ще немає.</p>
+      <div class="empty" id="plan-empty" hidden>
+        <strong data-i18n="studio.plan.empty">Плану ще немає.</strong>
+        <span data-i18n="studio.plan.empty.why">Він зʼявиться, щойно студія його складе.</span>
+      </div>
     </section>
 
-    <section class="card" aria-labelledby="run-title">
-      <div class="card-head">
-        <h2 id="run-title" data-i18n="studio.run.title">Хто веде роботу</h2>
-        <p class="next" id="run-state"></p>
-      </div>
-      <dl class="money" id="run-mandate"></dl>
-      <form class="loop" id="run-form" autocomplete="off">
-        <label for="run-actor"><span data-i18n="studio.loop.who">Ваше імʼя</span></label>
-        <input id="run-actor" type="text" maxlength="120">
-        <label for="run-ceiling"><span data-i18n="studio.run.ceiling">Стеля витрат</span></label>
-        <input id="run-ceiling" type="number" min="0" step="0.5" value="20">
-        <div class="loop-actions">
-          <button type="button" id="run-grant" data-i18n="studio.run.grant">Доручити студії</button>
-          <button type="button" id="run-revoke" data-i18n="studio.run.revoke" hidden>Відкликати доручення</button>
+    <div class="pair">
+      <section class="card" aria-labelledby="money-title">
+        <div class="card-head">
+          <h2 id="money-title" data-i18n="studio.money.title">Гроші</h2>
         </div>
-        <p class="result" id="run-result" role="status" aria-live="polite"></p>
-      </form>
-      <h3 data-i18n="studio.run.steps">Що вона вже зробила</h3>
-      <ul class="comments" id="run-steps"></ul>
-      <p id="run-empty" hidden data-i18n="studio.run.nothing">Поки що вона тут нічого не робила.</p>
-    </section>
+        <dl class="stats" id="money"></dl>
+        <div class="meter" id="money-meter" role="img" aria-labelledby="forecast"><span class="spent" style="width:0"></span><span class="reserved" style="width:0"></span></div>
+        <p class="small muted" id="forecast"></p>
+        <details class="by-role">
+          <summary data-i18n="studio.money.byrole">За ролями</summary>
+          <div class="scroller" tabindex="0" role="region" data-i18n-attr="aria-label:studio.money.byrole" aria-label="За ролями">
+            <table id="by-role"></table>
+          </div>
+        </details>
+      </section>
 
-    <section class="card" aria-labelledby="questions-title">
-      <h2 id="questions-title" data-i18n="studio.questions.title">Що вирішуєте ви</h2>
-      <ul class="questions" id="questions"></ul>
-    </section>
-
-    <section class="card" aria-labelledby="money-title">
-      <h2 id="money-title" data-i18n="studio.money.title">Гроші</h2>
-      <dl class="money" id="money"></dl>
-      <p id="forecast"></p>
-      <div class="table-scroll" tabindex="0" role="region" data-i18n-attr="aria-label:studio.money.title" aria-label="Гроші">
-        <table>
-          <thead><tr><th data-i18n="studio.team.title">Хто працює</th><th data-i18n="studio.money.spent">Витрачено</th><th data-i18n="studio.money.reserved">Зарезервовано</th></tr></thead>
-          <tbody id="by-role"></tbody>
-        </table>
-      </div>
-    </section>
-
-    <section class="card" aria-labelledby="team-title">
-      <h2 id="team-title" data-i18n="studio.team.title">Хто працює</h2>
-      <p id="acceptance"></p>
-      <ul class="team" id="team"></ul>
-    </section>
+      <section class="card" aria-labelledby="team-title">
+        <div class="card-head">
+          <h2 id="team-title" data-i18n="studio.team.title">Хто працює</h2>
+        </div>
+        <p class="note" id="acceptance"></p>
+        <ul class="team" id="team"></ul>
+      </section>
+    </div>
 
     <section class="card" aria-labelledby="loop-title">
-      <h2 id="loop-title" data-i18n="studio.loop.title">Пауза й правки</h2>
-      <p id="cycle-state"></p>
-      <form class="loop" id="loop-form" autocomplete="off">
-        <label><span data-i18n="studio.loop.who">Ваше імʼя</span>
-          <input id="actor" type="text" maxlength="120" required>
-        </label>
-        <label><span data-i18n="studio.loop.comment">Що змінити</span>
-          <input id="comment" type="text" maxlength="2000">
-        </label>
-        <div class="loop-actions">
-          <button type="button" id="pause" data-i18n="studio.loop.pause">Пауза</button>
-          <button type="button" id="send" data-i18n="studio.loop.send">Надіслати</button>
-          <button type="button" id="resume" class="primary" data-i18n="studio.loop.resume">Продовжити</button>
+      <div class="card-head">
+        <h2 id="loop-title" data-i18n="studio.control.title">Керування</h2>
+        <p id="cycle-state"></p>
+      </div>
+      <!-- One name, once. Every act on this page is recorded against a person,
+           and asking for the same name in three places is how a form turns into
+           an obstacle. -->
+      <label class="field" for="actor">
+        <span data-i18n="studio.loop.who">Ваше імʼя</span>
+        <input id="actor" type="text" maxlength="120" autocomplete="name">
+        <span class="hint" data-i18n="studio.loop.who.why">Кожну дію тут записано на конкретну людину.</span>
+      </label>
+
+      <div class="control-block">
+        <h3 data-i18n="studio.run.title">Хто веде роботу</h3>
+        <p class="small muted" id="run-state"></p>
+        <dl class="stats" id="run-mandate"></dl>
+        <div class="row">
+          <label class="field ceiling" for="run-ceiling">
+            <span data-i18n="studio.run.ceiling">Стеля витрат</span>
+            <input id="run-ceiling" type="number" min="0" step="0.5" value="20">
+          </label>
+          <button type="button" class="btn btn--primary" id="run-grant" data-i18n="studio.run.grant">Доручити студії</button>
+          <button type="button" class="btn" id="run-revoke" data-i18n="studio.run.revoke" hidden>Відкликати доручення</button>
         </div>
-        <p class="result" id="loop-result" role="status" aria-live="polite"></p>
-      </form>
-      <ul class="comments" id="comments"></ul>
+        <p class="small" id="run-result" role="status" aria-live="polite"></p>
+        <ul class="steps" id="run-steps"></ul>
+        <p class="small muted" id="run-empty" hidden data-i18n="studio.run.nothing">Поки що вона тут нічого не робила.</p>
+      </div>
+
+      <div class="control-block">
+        <h3 data-i18n="studio.loop.edits">Пауза й правки</h3>
+        <label class="field" for="comment">
+          <span data-i18n="studio.loop.comment">Що змінити</span>
+          <input id="comment" type="text" maxlength="500">
+        </label>
+        <div class="row">
+          <button type="button" class="btn" id="pause" data-i18n="studio.loop.pause">Пауза</button>
+          <button type="button" class="btn" id="send" data-i18n="studio.loop.send">Надіслати</button>
+          <button type="button" class="btn btn--primary" id="resume" data-i18n="studio.loop.resume">Продовжити</button>
+        </div>
+        <p class="small" id="loop-result" role="status" aria-live="polite"></p>
+        <ul class="comments" id="comments"></ul>
+      </div>
     </section>
 
-    <section class="card" aria-labelledby="machines-title">
-      <h2 id="machines-title" data-i18n="studio.machines.title">Де це виконується</h2>
+    <details class="card machines-card">
+      <summary><span data-i18n="studio.machines.title">Де це виконується</span></summary>
       <ul class="machines" id="machines"></ul>
-    </section>
-
-    <footer class="brand-footer"><span data-i18n="app.workspace">Lokvetia Core · Локальний робочий простір</span><a href="http://lokvetia.com/" target="_blank" rel="noopener noreferrer">lokvetia.com <span aria-hidden="true">↗</span></a></footer>
+    </details>
   </main>
+
+  <footer class="app-foot">
+    <span data-i18n="app.workspace">Lokvetia Core · Локальний робочий простір</span>
+    <span class="row">
+      <a href="/work" data-i18n="nav.progress">Хід роботи</a>
+      <a href="/operations" data-i18n="nav.operations">Панель оператора</a>
+      <a href="/login" data-i18n="nav.login">Доступ і вихід</a>
+      <a href="http://lokvetia.com/" target="_blank" rel="noopener noreferrer">lokvetia.com <span aria-hidden="true">↗</span></a>
+    </span>
+  </footer>
 </body>
 </html>

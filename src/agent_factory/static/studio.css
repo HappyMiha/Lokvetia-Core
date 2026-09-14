@@ -1,69 +1,151 @@
-.page-studio main { max-width: 68rem; margin: 0 auto; padding: 1.5rem 1rem 4rem; }
-.page-studio .intro { margin-bottom: 1.5rem; }
-.page-studio #create-form { display: grid; gap: .6rem; }
-.page-studio #create-form :is(input, textarea) { width: 100%; min-width: 0; box-sizing: border-box; }
-.page-studio #create-form a { display: inline-flex; align-items: center; min-height: 32px; }
-.page-studio .languages { display: flex; gap: .75rem; margin: .5rem 0 0; }
-.page-studio .languages a[aria-current="true"] { font-weight: 700; text-decoration: none; }
-.page-studio .picker { display: flex; flex-wrap: wrap; gap: .75rem; align-items: flex-end;
-  padding: 1rem; border: 1px solid var(--line, #d5dee1); border-radius: .6rem; margin: 0 0 1.25rem; }
-.page-studio .picker input { flex: 1 1 18rem; min-width: 0; max-width: 100%; padding: .35rem .5rem; }
-.page-studio .card { border: 1px solid var(--line, #d5dee1); border-radius: .6rem;
-  padding: 1.25rem; margin-bottom: 1.25rem; }
-.page-studio .card h2 { margin: 0 0 .5rem; }
-.page-studio .card h3 { margin: 1rem 0 .35rem; font-size: 1rem; }
-.page-studio .card-head { display: flex; flex-wrap: wrap; gap: .5rem 1rem;
-  align-items: baseline; justify-content: space-between; }
-.page-studio .card-head .next { margin: 0; }
-/* Names of games, roles and machines are long unbreakable tokens on a phone. */
-.page-studio :is(p, li, dd, dt, td, th) { overflow-wrap: anywhere; }
-.page-studio .warn { padding: .7rem .85rem; border-radius: .4rem;
-  border-left: 4px solid #a33a2f; background: rgba(163,58,47,.10); }
-.page-studio .stage { border-top: 1px solid var(--line, #d5dee1); padding: .9rem 0; }
-.page-studio .stage:first-of-type { border-top: 0; }
-.page-studio .stage-head { display: flex; flex-wrap: wrap; gap: .5rem;
-  align-items: baseline; justify-content: space-between; }
-.page-studio .stage-head h3 { margin: 0; }
-.page-studio .boundary { font-size: .9rem; opacity: .85; margin: .2rem 0 .4rem; }
-.page-studio .tasks { list-style: none; padding: 0; margin: 0; display: grid; gap: .3rem; }
-.page-studio .tasks li { display: flex; flex-wrap: wrap; gap: .5rem; align-items: baseline; }
-.page-studio .state { font-size: .75rem; padding: .1rem .5rem; border-radius: .8rem;
-  border: 1px solid currentColor; flex: 0 0 auto; }
-.page-studio .state-planned { color: #4d6068; }
-.page-studio .state-in_progress { color: #7a4a12; }
-.page-studio .state-done { color: #2f7d5b; }
-.page-studio .state-blocked { color: #a33a2f; }
-.page-studio .note { font-size: .88rem; opacity: .85; flex: 1 1 100%; margin: 0; }
-.page-studio .questions, .page-studio .team, .page-studio .machines,
-.page-studio .comments { list-style: none; padding: 0; margin: 0; display: grid; gap: .5rem; }
-.page-studio .questions li { padding: .6rem .75rem; border-radius: .4rem;
-  border-left: 4px solid #7a4a12; background: rgba(176,125,26,.10); }
-.page-studio .questions li.clear { border-color: #2f7d5b; background: rgba(47,125,91,.08); }
-.page-studio .questions .options { display: block; font-size: .9rem; margin-top: .2rem; }
-.page-studio .money { display: grid; grid-template-columns: minmax(0, auto) minmax(0, 1fr);
-  gap: .3rem .75rem; margin: 0 0 .6rem; }
-.page-studio .money dt { font-weight: 600; }
-.page-studio .money dd { margin: 0; }
-.page-studio .table-scroll { overflow-x: auto; max-width: 100%; }
-.page-studio table { width: 100%; border-collapse: collapse; font-size: .9rem; min-width: 24rem; }
-.page-studio th, .page-studio td { text-align: left; padding: .35rem .5rem;
-  border-bottom: 1px solid var(--line, #d5dee1); vertical-align: top; }
-.page-studio .table-scroll:focus-visible { outline: 3px solid var(--brand-focus, #a66216); outline-offset: 2px; }
-.page-studio .team li { display: flex; flex-wrap: wrap; gap: .5rem; align-items: baseline; }
-.page-studio .team button { flex: 0 0 auto; }
-.page-studio .team .note { flex: 1 1 100%; margin: .2rem 0 0; font-size: .9rem; opacity: .9; }
-.page-studio .team .off { opacity: .7; }
-.page-studio .loop { margin-top: .6rem; display: grid; gap: .6rem; }
-.page-studio .loop label { display: flex; flex-direction: column; gap: .25rem; }
-.page-studio .loop input { padding: .35rem .5rem; max-width: 100%; }
-.page-studio .loop-actions { display: flex; flex-wrap: wrap; gap: .5rem; }
-.page-studio .result:empty { display: none; }
-.page-studio .comments li { font-size: .92rem; padding: .4rem .6rem; border-radius: .4rem;
-  background: rgba(16,44,53,.05); }
-@media (max-width: 42rem) {
-  .page-studio main { padding-inline: .75rem; }
-  .page-studio .card { padding: .9rem; }
-  .page-studio .picker input, .page-studio .picker button { width: 100%; }
-  .page-studio .money { grid-template-columns: minmax(0, 1fr); }
-  .page-studio .loop-actions button { width: 100%; }
+/* The game page. Everything generic lives in app.css; this file only says what
+   is specific to looking at one game. */
+
+.page-studio .hero { padding: var(--s5) var(--s5) var(--s4); }
+.page-studio .hero-top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--s3) var(--s5);
+}
+.page-studio .hero-name { min-width: 0; }
+.page-studio .hero h1 { font-size: var(--text-2xl); }
+.page-studio .hero-pick { min-width: 12rem; max-width: 20rem; flex: 0 1 16rem; }
+/* The one line a person came for. Big enough to read from across the desk. */
+.page-studio .hero-now {
+  margin-top: var(--s4);
+  font-size: var(--text-md);
+  line-height: 1.45;
+  color: var(--ink);
+}
+.page-studio .hero-meter { margin-top: var(--s4); display: grid; gap: var(--s2); }
+.page-studio .hero-actions { margin-top: var(--s4); }
+.page-studio .hero-actions:empty { display: none; }
+.page-studio .hero .note { margin-top: var(--s4); }
+
+.page-studio .pair {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(20rem, 100%), 1fr));
+  align-items: start;
+  gap: var(--s4);
+  margin-top: var(--s4);
+}
+.page-studio .pair > .card { margin-top: 0; }
+
+/* ------------------------------------------------------------------ plan */
+
+.page-studio .stage { padding: var(--s4) 0; border-top: 1px solid var(--line); }
+.page-studio .stage:first-of-type { padding-top: 0; border-top: 0; }
+.page-studio .stage-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s2) var(--s4);
+}
+.page-studio .stage-head h3 { font-size: var(--text-md); }
+.page-studio .boundary { margin: var(--s1) 0 var(--s3); color: var(--ink-soft); font-size: var(--text-sm); }
+.page-studio .tasks { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--s2); }
+.page-studio .tasks li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--s2) var(--s3);
+  padding: var(--s2) var(--s3);
+  border-radius: var(--radius-sm);
+  background: var(--surface-sunk);
+}
+.page-studio .tasks .note { flex: 1 1 100%; margin: 0; padding: 0; border: 0; background: none; color: var(--ink-soft); }
+.page-studio .task-role { margin-inline-start: auto; color: var(--ink-faint); font-size: var(--text-xs); }
+
+/* ---------------------------------------------------------------- create */
+
+.page-studio #create-form { display: grid; gap: var(--s3); }
+.page-studio #create-form textarea { resize: vertical; min-height: 6rem; }
+.page-studio #create-readiness:empty, .page-studio #create-result:empty { display: none; }
+.page-studio #create-readiness { color: var(--ink-soft); }
+
+/* ------------------------------------------------------------- questions */
+
+.page-studio .questions { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--s3); }
+.page-studio .questions li {
+  padding: var(--s4);
+  border-radius: var(--radius-sm);
+  border-inline-start: 3px solid var(--running);
+  background: var(--running-soft);
+}
+.page-studio .questions strong { display: block; margin-bottom: var(--s1); }
+.page-studio .questions .options { color: var(--ink-soft); font-size: var(--text-sm); }
+.page-studio #questions-card { border-color: #e8d3ad; }
+
+/* ----------------------------------------------------------------- money */
+
+.page-studio #money { margin: 0 0 var(--s4); }
+.page-studio #money-meter { margin-bottom: var(--s2); }
+.page-studio .by-role { margin-top: var(--s4); }
+.page-studio .by-role summary { color: var(--accent); font-size: var(--text-sm); font-weight: 650; cursor: pointer; }
+.page-studio .by-role .scroller { margin-top: var(--s3); }
+
+/* ------------------------------------------------------------------ team */
+
+.page-studio .team { list-style: none; margin: var(--s4) 0 0; padding: 0; display: grid; gap: var(--s2); }
+/* A role is what it is called, what it does, and one control. The name and the
+   duty stack in one column so the sentence keeps its line length; the state and
+   the control sit together on the right instead of drifting onto their own rows. */
+.page-studio .team li {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: var(--s1) var(--s3);
+  padding: var(--s3);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+}
+.page-studio .team .who { grid-column: 1; font-weight: 650; }
+.page-studio .team .duty { grid-column: 1; color: var(--ink-soft); font-size: var(--text-sm); }
+.page-studio .team .task-role { grid-column: 1; margin: 0; }
+.page-studio .team .chip { grid-column: 2; grid-row: 1; justify-self: end; }
+.page-studio .team .btn {
+  grid-column: 2;
+  min-height: 2rem;
+  padding-inline: var(--s3);
+  font-size: var(--text-sm);
+  width: auto;
+  justify-self: end;
+}
+.page-studio .team li.off { background: var(--surface-sunk); }
+.page-studio .team li.off .who { color: var(--ink-soft); }
+.page-studio .team .offer { grid-column: 1 / -1; margin: 0; padding: var(--s3); border-radius: var(--radius-sm); background: var(--running-soft); font-size: var(--text-sm); }
+
+/* --------------------------------------------------------------- control */
+
+.page-studio .control-block { margin-top: var(--s5); padding-top: var(--s5); border-top: 1px solid var(--line); }
+.page-studio .control-block h3 { margin-bottom: var(--s2); }
+.page-studio .control-block .field { margin-top: var(--s3); }
+.page-studio .control-block .row { margin-top: var(--s3); }
+.page-studio .ceiling { flex: 0 1 10rem; }
+.page-studio #run-mandate:empty { display: none; }
+.page-studio :is(#run-result, #loop-result):empty { display: none; }
+.page-studio .steps, .page-studio .comments { list-style: none; margin: var(--s3) 0 0; padding: 0; display: grid; gap: var(--s2); }
+.page-studio :is(.steps, .comments) li {
+  padding: var(--s2) var(--s3);
+  border-radius: var(--radius-sm);
+  background: var(--surface-sunk);
+  font-size: var(--text-sm);
+}
+.page-studio .steps .detail { color: var(--ink-soft); }
+
+/* -------------------------------------------------------------- machines */
+
+.page-studio .machines-card { padding: var(--s4) var(--s5); margin-top: var(--s4); }
+.page-studio .machines-card summary { font-weight: 650; cursor: pointer; }
+.page-studio .machines { list-style: none; margin: var(--s4) 0 0; padding: 0; display: grid; gap: var(--s2); }
+.page-studio .machines li { display: flex; flex-wrap: wrap; gap: var(--s2); font-size: var(--text-sm); }
+.page-studio .machines .nobuild { color: var(--ink-soft); }
+
+@media (max-width: 40rem) {
+  .page-studio .hero-pick { flex: 1 1 100%; max-width: none; }
+  .page-studio .ceiling { flex: 1 1 100%; }
+  .page-studio .team .btn { width: 100%; }
 }

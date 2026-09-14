@@ -166,6 +166,10 @@ CATALOGUE: Mapping[str, Message] = {
     "settings.verify.label": Message(
         "Перевірити розділ: {title}", "Check this section: {title}"
     ),
+    "settings.count": Message(
+        "{count} налаштувань · змінено {changed}",
+        "{count} settings · {changed} changed",
+    ),
     "settings.badge.default": Message("типове", "default"),
     "settings.badge.changed": Message("змінено", "changed"),
     "settings.badge.sensitive": Message("важливе", "important"),
@@ -364,6 +368,26 @@ CATALOGUE: Mapping[str, Message] = {
     "studio.loop.paused": Message("На паузі", "Paused"),
     "studio.loop.running": Message("Працює", "Running"),
     "studio.loop.cycle": Message("Цикл {number}", "Cycle {number}"),
+    "studio.progress": Message(
+        "Зроблено {done} із {total} задач", "{done} of {total} tasks done",
+    ),
+    "studio.action.setup": Message(
+        "Налаштувати виконання", "Set up who does the work",
+    ),
+    "studio.action.delegate": Message(
+        "Доручити студії вести гру", "Let the studio run this game",
+    ),
+    "studio.plan.empty.why": Message(
+        "Він зʼявиться, щойно студія його складе.",
+        "It will appear as soon as the studio draws one up.",
+    ),
+    "studio.money.byrole": Message("За ролями", "By role"),
+    "studio.loop.edits": Message("Пауза й правки", "Pause and edits"),
+    "studio.control.title": Message("Керування", "Controls"),
+    "studio.loop.who.why": Message(
+        "Кожну дію тут записано на конкретну людину.",
+        "Every act here is recorded against a particular person.",
+    ),
     "studio.run.title": Message("Хто веде роботу", "Who is driving the work"),
     "studio.create.title": Message("Почати нову гру", "Start a new game"),
     "studio.create.name": Message("Назва гри", "Game title"),

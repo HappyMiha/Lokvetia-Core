@@ -264,7 +264,10 @@ class LocalGames:
             'SELECT status,COUNT(*) count FROM work_items WHERE project_id=? GROUP BY status', (mission.project_id,))}
         progress = self._progress(counts)
         # Execution checkpoints and completed workflow runs do not certify playability.
-        return {'id': mission.project_id, 'mission_id': mission.id, 'title': mission.name,
+        # The studio addresses a game by its mission key; without it here the
+        # interface would have to make a person type one.
+        return {'id': mission.project_id, 'mission_id': mission.id,
+                'mission_key': mission.mission_key, 'title': mission.name,
                 'phase': mission.phase.value, 'disposition': mission.disposition.value,
                 'version': mission.version, 'task_counts': counts, 'latest_working': None,
                 'progress': progress,

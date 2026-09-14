@@ -145,6 +145,11 @@ class AccessibilityBrowserTests(unittest.TestCase):
             page.goto(f"{self.url}/settings", wait_until="networkidle")
             page.wait_for_selector(".section-card")
             page.fill("#actor", "miha")
+            # Sections are folded shut so the page is scannable; a person opens
+            # the one they came for, and so does this test.
+            page.locator(".section-card").filter(
+                has_text="Захищати закріплені версії"
+            ).first.locator("summary").click()
             field = page.locator(".field").filter(
                 has_text="Захищати закріплені версії"
             ).first
