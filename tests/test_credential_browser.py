@@ -46,7 +46,8 @@ class CredentialBrowserTests(unittest.TestCase):
         self.page.locator('#secret').fill(self.secret);self.page.locator('#confirmed').check()
     def test_masked_secret_cleared_no_browser_storage_and_disconnect_cancel_confirm(self):
         self.page.goto(self.url)
-        self.page.locator('summary').filter(has_text='Налаштування').click()
+        # The navigation is no longer folded into a disclosure: every link a
+        # person needs is on the page, and this one lives in the footer.
         self.page.get_by_role('link',name='Доступ до AI',exact=True).click()
         self.page.locator('#secret').fill(self.secret)
         self.assertEqual(self.page.locator('#secret').get_attribute('type'),'password')

@@ -14,7 +14,7 @@ async function api(url,body,confirm=false){
  return data;
 }
 async function action(fn){try{return await fn();}catch(error){note(error.message||'Не вдалося зберегти. Ваш текст залишається на екрані.');return null;}}
-function pager(name,data){$(name+'-prev').disabled=pages[name]===0;$(name+'-next').disabled=pages[name]+data.items.length>=data.total;$(name+'-page').textContent=data.total?`${pages[name]+1}–${Math.min(pages[name]+data.items.length,data.total)} із ${data.total}`:'Немає записів';}
+function pager(name,data){const holder=$(name+'-prev').parentElement;holder.classList.toggle('idle',!data.total);$(name+'-prev').disabled=pages[name]===0;$(name+'-next').disabled=pages[name]+data.items.length>=data.total;$(name+'-page').textContent=data.total?`${pages[name]+1}–${Math.min(pages[name]+data.items.length,data.total)} із ${data.total}`:'Немає записів';}
 async function list(name){
  const generation=++generations[name],query=$(name==='games'?'game-query':'mission-query').value;
  const data=await api(`/api/games/${name==='games'?'starts':'missions'}?offset=${pages[name]}&limit=20&q=${encodeURIComponent(query)}`);
@@ -25,7 +25,10 @@ async function list(name){
   if(name==='missions'){card.append(element('p',progressText(item)),progressBar(item),element('p',nextAction(item)));}
   card.append(element('p',workingVersion(item)));
   const button=element('button','Продовжити');button.onclick=()=>action(()=>openItem(name,name==='games'?item.id:item.mission_id));card.append(button);container.append(card);}
- if(!data.items.length)container.append(element('p',query?'За цим пошуком нічого не знайдено.':'Тут з’являться ваші збережені ідеї.'));
+ if(!data.items.length){const empty=element('div');empty.className='empty';
+  empty.append(element('strong',query?'За цим пошуком нічого не знайдено.':'Тут з’являться ваші ігри.'));
+  if(!query)empty.append(element('span','Натисніть «Створити гру» і опишіть задум своїми словами.'));
+  container.append(empty);}
  pager(name,data);
 }
 function phase(value){return {DRAFT:'Чернетка: потрібен план',SPECIFICATION_ANALYSIS:'Розбір специфікації',BACKLOG_GENERATION:'Складання плану',WAITING_FOR_BACKLOG_APPROVAL:'План очікує затвердження',APPROVED:'План затверджено',ENVIRONMENT_DISCOVERY:'Перевірка середовища',ENVIRONMENT_BOOTSTRAP:'Підготовка середовища',DEVELOPMENT:'Створення',VALIDATION:'Перевірка результату',INTEGRATION:'Збирання разом',FINAL_VALIDATION:'Підсумкова перевірка',COMPLETED:'Робочий процес завершено'}[value]||'Потрібна перевірка поточного стану';}

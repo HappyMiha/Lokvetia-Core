@@ -1,1 +1,169 @@
-:root{font-family:system-ui,sans-serif;color:#20372f;background:#f4f5ef;font-synthesis:none}*{box-sizing:border-box}body{margin:0}header{display:flex;align-items:center;gap:1.5rem;padding:1.2rem max(1.2rem,calc((100vw - 1120px)/2));background:#fff;border-bottom:1px solid #dbe1d5}header details{margin-left:auto;position:relative}header details a{display:block;padding:.5rem}.brand{font-size:1.3rem;font-weight:800;text-decoration:none;color:#20372f}main{max-width:1120px;margin:auto;padding:2rem 1.2rem 5rem}h1{font-size:clamp(2rem,4vw,3.2rem);letter-spacing:-.045em;line-height:1.15}h2{font-size:1.65rem}p{line-height:1.65;color:#4b6258}a{color:#246a53}button,input,textarea,select{font:inherit}button{padding:.8rem 1rem;border:1px solid #bdcec0;border-radius:.7rem;background:white;color:#244b3b;cursor:pointer;font-weight:650}button.primary{background:#25674e;color:white;border-color:#25674e}button:disabled{opacity:.55;cursor:default}input,textarea,select{width:100%;padding:.85rem;margin-top:.4rem;border:1px solid #bbcabe;border-radius:.6rem;background:white;color:#20372f}textarea{resize:vertical}label{display:block;font-weight:600;line-height:1.6}.heading{display:flex;align-items:center;justify-content:space-between;gap:2rem}.eyebrow{font-size:.8rem;letter-spacing:.12em;text-transform:uppercase}form{display:flex;gap:1rem;align-items:end;margin:1.5rem 0}form label{flex:1}.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:1rem}.card,.step{padding:1.5rem;background:#fff;border:1px solid #dbe1d5;border-radius:1rem}.card h2{font-size:1.2rem}.card{overflow-wrap:anywhere}.card button{margin-top:.5rem}.card .rail{height:6px;border-radius:3px;background:#e0e7dd;overflow:hidden;margin:.2rem 0 .6rem}.card .bar{height:100%;width:0;background:#25674e}.step{max-width:850px;margin:1.5rem 0}.step label{margin:1rem 0}.pager,.actions{display:flex;align-items:center;gap:.8rem;flex-wrap:wrap;margin:1.4rem 0}.pager{justify-content:space-between}details{margin:1rem 0}summary{cursor:pointer;padding:.6rem 0;font-weight:600}#steps{display:flex;gap:.5rem;flex-wrap:wrap}#steps button[aria-current=step]{background:#d4e9d7;border-color:#25674e}#notice:not(:empty){background:#fff2ce;padding:1rem;border-radius:.8rem}pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#e9eee6;padding:1rem;border-radius:.7rem}dialog{max-width:540px;width:calc(100% - 2rem);border:1px solid #bdcec0;border-radius:1rem;padding:1.5rem}dialog::backdrop{background:#10231ec9}dialog form{display:block}.skip{position:absolute;left:-10000px}.skip:focus{left:1rem;top:1rem;background:white;padding:1rem}button:focus-visible,a:focus-visible,summary:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-visible{outline:3px solid #d49432;outline-offset:3px}[hidden]{display:none!important}@media(max-width:620px){header{flex-wrap:wrap;gap:.6rem}header>span{display:none}.heading{display:block}.heading>button{width:100%}form{flex-wrap:wrap}form label{flex-basis:100%}.cards{grid-template-columns:1fr}.step{padding:1rem}.actions button{flex:1}.pager{font-size:.9rem}}
+/* My games, and the steps that turn an idea into one. Everything generic is in
+   app.css; this file only carries what is specific to this page.
+
+   What it replaced: a second set of colours, fonts and buttons that disagreed
+   with every other screen - including a different page background, which is why
+   this page used to end in a beige band nobody had asked for. */
+
+.page-index .heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--s4) var(--s5);
+  margin-bottom: var(--s6);
+}
+.page-index .heading h1 { font-size: var(--text-2xl); }
+.page-index .heading p { color: var(--ink-soft); margin-top: var(--s2); }
+.page-index #notice:empty { display: none; }
+.page-index #notice {
+  margin-bottom: var(--s4);
+  padding: var(--s3) var(--s4);
+  border-radius: var(--radius-sm);
+  border-inline-start: 3px solid var(--running);
+  background: var(--running-soft);
+  font-size: var(--text-sm);
+}
+
+/* ------------------------------------------------------------- the games */
+
+.page-index .cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(17rem, 100%), 1fr));
+  gap: var(--s4);
+}
+.page-index .cards .card { display: grid; align-content: start; gap: var(--s2); }
+.page-index .cards .card h2 { font-size: var(--text-md); }
+.page-index .cards .card p { color: var(--ink-soft); font-size: var(--text-sm); }
+.page-index .cards .card .row { margin-top: var(--s2); }
+.page-index .cards .empty { grid-column: 1 / -1; }
+.page-index .rail { height: .4rem; border-radius: 999px; background: var(--surface-sunk); overflow: hidden; }
+.page-index .rail .bar { height: 100%; background: var(--accent); }
+
+.page-index form:is(#game-search, #mission-search, #version-search) {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--s3);
+  margin-bottom: var(--s4);
+}
+.page-index form label { display: grid; gap: var(--s1); flex: 1 1 18rem; font-size: var(--text-sm); font-weight: 650; }
+.page-index form label input:not([type="checkbox"]),
+.page-index form label select,
+.page-index form label textarea {
+  width: 100%;
+  min-height: 2.5rem;
+  padding: var(--s2) var(--s3);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  font-weight: 400;
+}
+.page-index form label textarea { min-height: 9rem; resize: vertical; }
+
+.page-index .pager {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s3);
+  margin-top: var(--s4);
+  color: var(--ink-soft);
+  font-size: var(--text-sm);
+}
+/* Paging an empty list is furniture, not function. */
+.page-index .pager:has(+ * ) { }
+.page-index .empty + .pager, .page-index .pager.idle { display: none; }
+
+.page-index #existing { margin-top: var(--s6); }
+.page-index #existing > summary,
+.page-index #history > summary,
+.page-index details > summary {
+  padding: var(--s2) 0;
+  color: var(--accent);
+  font-size: var(--text-sm);
+  font-weight: 650;
+  cursor: pointer;
+}
+.page-index #existing > :not(summary) { margin-top: var(--s4); }
+
+/* ------------------------------------------------------------- the steps */
+
+.page-index #editor > h1 { margin: var(--s3) 0 var(--s2); font-size: var(--text-xl); }
+.page-index #save-state, .page-index #next-action { color: var(--ink-soft); font-size: var(--text-sm); }
+.page-index #save-state:empty, .page-index #next-action:empty { display: none; }
+
+.page-index #steps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s2);
+  margin: var(--s5) 0;
+  padding: var(--s2);
+  border-radius: 999px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+}
+.page-index #steps button {
+  min-height: 2.25rem;
+  padding: 0 var(--s4);
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--ink-soft);
+  font: inherit;
+  font-size: var(--text-sm);
+  font-weight: 650;
+  cursor: pointer;
+}
+.page-index #steps button:hover { background: var(--surface-sunk); color: var(--ink); }
+.page-index #steps button[aria-current="step"] { background: var(--accent); color: #fff; }
+
+.page-index .step {
+  display: grid;
+  gap: var(--s4);
+  padding: var(--s5);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+.page-index .step h2 { font-size: var(--text-lg); }
+.page-index .step p { color: var(--ink-soft); }
+.page-index .step .eyebrow { margin: 0; }
+
+.page-index .actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s3);
+  margin-top: var(--s5);
+}
+.page-index .actions button:last-child { margin-inline-start: auto; }
+
+.page-index dialog {
+  max-width: 32rem;
+  padding: var(--s5);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  color: var(--ink);
+  background: var(--surface);
+}
+.page-index dialog::backdrop { background: rgba(15, 43, 51, .45); }
+.page-index dialog h2 { margin-bottom: var(--s3); }
+.page-index dialog p { color: var(--ink-soft); }
+
+.page-index pre {
+  overflow-x: auto;
+  padding: var(--s3);
+  border-radius: var(--radius-sm);
+  background: var(--surface-sunk);
+  font-size: var(--text-sm);
+}
+
+@media (max-width: 40rem) {
+  .page-index .heading { align-items: stretch; }
+  .page-index .actions button:last-child { margin-inline-start: 0; }
+  .page-index #steps { border-radius: var(--radius); }
+  .page-index #steps button { flex: 1 1 8rem; }
+}

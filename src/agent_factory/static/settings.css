@@ -1,66 +1,155 @@
-.page-settings main { max-width: 68rem; margin: 0 auto; padding: 1.5rem 1rem 4rem; }
-.page-settings .intro { margin-bottom: 1.5rem; }
-.page-settings .languages { display: flex; gap: .75rem; margin: .5rem 0 0; }
-.page-settings .languages a[aria-current="true"] { font-weight: 700; text-decoration: none; }
-.page-settings .who { display: flex; flex-wrap: wrap; gap: .75rem; align-items: flex-end;
-  padding: 1rem; border: 1px solid var(--line, #d5dee1); border-radius: .6rem; margin: 1rem 0 1.5rem; }
-.page-settings .who label { display: flex; flex-direction: column; gap: .25rem; flex: 1 1 16rem; }
-.page-settings .who p { flex: 1 1 100%; margin: 0; font-size: .9rem; opacity: .8; }
-.page-settings .section-card { border: 1px solid var(--line, #d5dee1); border-radius: .6rem;
-  padding: 1.25rem; margin-bottom: 1.25rem; }
-.page-settings .section-head { display: flex; flex-wrap: wrap; gap: .75rem;
-  align-items: baseline; justify-content: space-between; }
-.page-settings .section-head h2 { margin: 0; }
-.page-settings .findings { list-style: none; padding: 0; margin: .75rem 0 0; display: grid; gap: .5rem; }
-.page-settings .findings li { padding: .6rem .75rem; border-radius: .4rem; border-left: 4px solid; }
-.page-settings .level-ok { border-color: #2f7d5b; background: rgba(47,125,91,.08); }
-.page-settings .level-attention { border-color: #b07d1a; background: rgba(176,125,26,.10); }
-.page-settings .level-problem { border-color: #a33a2f; background: rgba(163,58,47,.10); }
-.page-settings .findings .detail { display: block; font-size: .9rem; opacity: .85; margin-top: .2rem; }
-/* An auto grid column is sized to its content and will happily overflow a narrow
-   screen; minmax(0, 1fr) makes the column fit the container instead. */
-.page-settings .field { border-top: 1px solid var(--line, #d5dee1); padding: .9rem 0;
-  display: grid; grid-template-columns: minmax(0, 1fr); gap: .4rem; min-width: 0; }
-.page-settings .field > * { min-width: 0; max-width: 100%; }
-.page-settings .field:first-of-type { border-top: 0; }
-.page-settings .field-head { display: flex; flex-wrap: wrap; gap: .5rem; align-items: baseline; }
-.page-settings .field-head strong { font-size: 1rem; }
-.page-settings .badge { font-size: .75rem; padding: .1rem .45rem; border-radius: .8rem;
-  border: 1px solid currentColor; }
-.page-settings .badge-default { color: #4d6068; }
-.page-settings .badge-changed { color: #7a4a12; }
-.page-settings .badge-sensitive { color: #a33a2f; }
-.page-settings .badge-locked { color: #4d6068; }
-/* Setting keys and module paths are long unbreakable tokens; without this they
-   paint past a 320px screen and make the whole page scroll sideways. */
-.page-settings :is(p, li, td, th, .origin, .field-error, .field-ok) {
-  overflow-wrap: anywhere;
+/* Settings. Everything generic is in app.css; this file only carries what is
+   specific to a screen of values, where each one has to say what it is now,
+   where that came from, and what changes if you change it. */
+
+.page-settings .intro { margin-bottom: var(--s6); }
+.page-settings .intro h1 { font-size: var(--text-2xl); }
+.page-settings .intro .lead { max-width: 46rem; }
+.page-settings #summary { margin-top: var(--s3); color: var(--ink-soft); font-size: var(--text-sm); }
+.page-settings #summary:empty { display: none; }
+
+.page-settings .who {
+  display: grid;
+  gap: var(--s2);
+  max-width: 34rem;
+  margin-bottom: var(--s5);
+  padding: var(--s4);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
 }
-.page-settings .field p { margin: 0; font-size: .92rem; opacity: .9; }
-.page-settings .origin { font-size: .82rem; opacity: .75; }
-.page-settings .controls { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; min-width: 0; }
-.page-settings .controls > * { max-width: 100%; }
-.page-settings .controls input[type="text"], .page-settings .controls input[type="number"],
-.page-settings .controls select { flex: 1 1 14rem; min-width: 0; max-width: 100%; padding: .35rem .5rem; }
-.page-settings .controls input.reason { flex: 1 1 16rem; min-width: 0; }
+.page-settings .who label { display: grid; gap: var(--s1); font-size: var(--text-sm); font-weight: 650; }
+.page-settings .who p { color: var(--ink-soft); font-size: var(--text-xs); }
+
+.page-settings :is(input, select, textarea) {
+  width: 100%;
+  min-height: 2.5rem;
+  padding: var(--s2) var(--s3);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  font-weight: 400;
+}
+.page-settings input[type="checkbox"] { width: auto; min-width: 24px; min-height: 24px; accent-color: var(--accent); }
+.page-settings button { /* falls back to the shared .btn look for unclassed ones */
+  min-height: 2.5rem;
+  padding: 0 var(--s4);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  font-weight: 650;
+  cursor: pointer;
+}
+.page-settings button:hover:not(:disabled) { background: var(--surface-sunk); }
+
+/* -------------------------------------------------------------- sections */
+
+.page-settings .section-card {
+  padding: var(--s5);
+  margin-bottom: var(--s4);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+.page-settings .section-card > summary { cursor: pointer; list-style: none; }
+.page-settings .section-card > summary::-webkit-details-marker { display: none; }
+.page-settings .section-card > summary::after {
+  content: "▾";
+  margin-inline-start: var(--s2);
+  color: var(--ink-faint);
+  transition: transform 140ms ease;
+}
+.page-settings .section-card[open] > summary::after { display: inline-block; transform: rotate(180deg); }
+.page-settings .section-card[open] > summary { margin-bottom: var(--s4); }
+.page-settings .section-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s2) var(--s4);
+  margin-bottom: var(--s4);
+}
+.page-settings .section-head h2 { font-size: var(--text-lg); }
+.page-settings .section-card > summary .origin { margin-inline-start: auto; }
+.page-settings .section-card > p + button { margin-top: var(--s3); }
+
+/* ---------------------------------------------------------------- fields */
+
+.page-settings .field { padding: var(--s4) 0; border-top: 1px solid var(--line); display: grid; gap: var(--s2); }
+.page-settings .field:first-of-type { padding-top: 0; border-top: 0; }
+.page-settings .field-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--s2) var(--s3);
+}
+.page-settings .field-head label { font-weight: 650; }
+.page-settings .origin { color: var(--ink-soft); font-size: var(--text-sm); }
+.page-settings .controls { display: flex; flex-wrap: wrap; align-items: flex-end; gap: var(--s3); }
+.page-settings .controls > :is(input, select) { flex: 1 1 16rem; }
 .page-settings .controls button { flex: 0 0 auto; }
-/* A wide table is the one thing allowed to scroll sideways, inside its own
-   focusable region so a keyboard can reach the scroll. */
+.page-settings .field-ok { color: var(--done); font-size: var(--text-sm); }
+.page-settings .field-error { color: var(--blocked); font-size: var(--text-sm); }
+.page-settings :is(.field-ok, .field-error):empty { display: none; }
+
+.page-settings .badge {
+  display: inline-flex;
+  align-items: center;
+  padding: .15rem var(--s2);
+  border-radius: 999px;
+  font-size: var(--text-xs);
+  font-weight: 700;
+}
+.page-settings .badge-default { color: var(--planned); background: var(--planned-soft); }
+.page-settings .badge-changed { color: var(--done); background: var(--done-soft); }
+.page-settings .badge-sensitive { color: var(--running); background: var(--running-soft); }
+.page-settings .badge-locked { color: var(--ink-faint); background: var(--surface-sunk); }
+
+.page-settings .findings { display: grid; gap: var(--s2); margin-top: var(--s4); }
+.page-settings .findings p {
+  padding: var(--s3) var(--s4);
+  border-radius: var(--radius-sm);
+  border-inline-start: 3px solid var(--planned);
+  background: var(--planned-soft);
+  font-size: var(--text-sm);
+}
+.page-settings .level-ok { border-color: var(--done); background: var(--done-soft); }
+.page-settings .level-attention { border-color: var(--running); background: var(--running-soft); }
+.page-settings .level-problem { border-color: var(--blocked); background: var(--blocked-soft); }
+
+/* --------------------------------------------------------------- history */
+
 .page-settings .table-scroll { overflow-x: auto; max-width: 100%; }
-.page-settings table { min-width: 34rem; }
-.page-settings .field-error { color: #a33a2f; font-size: .9rem; }
-.page-settings .field-ok { color: #2f7d5b; font-size: .9rem; }
-.page-settings table { width: 100%; border-collapse: collapse; font-size: .9rem; }
-.page-settings .table-scroll:focus-visible { outline: 3px solid var(--brand-focus, #a66216); outline-offset: 2px; }
-.page-settings th, .page-settings td { text-align: left; padding: .35rem .5rem;
-  border-bottom: 1px solid var(--line, #d5dee1); vertical-align: top; }
-.page-settings dialog { max-width: 34rem; border: 1px solid var(--line, #d5dee1); border-radius: .6rem; }
-.page-settings dialog .consequence { border-left: 4px solid #a33a2f; padding: .6rem .75rem;
-  background: rgba(163,58,47,.08); }
-@media (max-width: 42rem) {
-  .page-settings .controls { flex-direction: column; align-items: stretch; }
-  .page-settings .controls input, .page-settings .controls select,
-  .page-settings .controls button { width: 100%; }
-  .page-settings main { padding-inline: .75rem; }
-  .page-settings .section-card { padding: .9rem; }
+.page-settings .table-scroll:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+.page-settings table { width: 100%; min-width: 34rem; border-collapse: collapse; font-size: var(--text-sm); }
+.page-settings :is(th, td) {
+  padding: var(--s2) var(--s3);
+  text-align: start;
+  border-bottom: 1px solid var(--line);
+  vertical-align: top;
+}
+.page-settings th { color: var(--ink-soft); font-size: var(--text-xs); text-transform: uppercase; letter-spacing: .06em; }
+.page-settings #history-empty { margin-top: var(--s3); color: var(--ink-soft); font-size: var(--text-sm); }
+
+.page-settings dialog {
+  max-width: 34rem;
+  padding: var(--s5);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  color: var(--ink);
+  background: var(--surface);
+}
+.page-settings dialog::backdrop { background: rgba(15, 43, 51, .45); }
+.page-settings dialog h2 { margin-bottom: var(--s3); }
+.page-settings dialog p { color: var(--ink-soft); }
+.page-settings dialog .controls { margin-top: var(--s4); }
+
+@media (max-width: 40rem) {
+  .page-settings .section-card { padding: var(--s4); }
+  .page-settings .controls > * { flex: 1 1 100%; }
 }

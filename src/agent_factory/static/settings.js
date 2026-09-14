@@ -253,15 +253,23 @@
     return list;
   }
 
+  // Eight sections and forty settings in one column is a wall, not a screen.
+  // Each section is folded shut and says in one line what is inside, so a person
+  // opens the one they came for instead of scrolling past the seven they did not.
   function renderSection(section) {
-    const node = element('section', undefined, 'section-card');
-    const head = element('div', undefined, 'section-head');
+    const node = element('details', undefined, 'section-card');
+    const head = element('summary', undefined, 'section-head');
     const title = element('h2', section.title);
+    const count = element('span', say('settings.count', {
+      count: section.fields.length,
+      changed: section.changed_count || 0,
+    }), 'origin');
+    head.append(title, count);
+    node.append(head);
     const verify = element('button', say('settings.verify'));
     verify.type = 'button';
     verify.setAttribute('aria-label', say('settings.verify.label', {title: section.title}));
-    head.append(title, verify);
-    node.append(head, element('p', section.summary));
+    node.append(element('p', section.summary), verify);
     if (section.changed_count) {
       node.append(element(
         'p', say('settings.changed_count', {count: section.changed_count}), 'origin',

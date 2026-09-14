@@ -7,8 +7,8 @@ the screen are compared with what the data supports.
 
 from __future__ import annotations
 
-import tempfile
 import json
+import tempfile
 import threading
 import time
 import unittest
@@ -42,7 +42,7 @@ def seed(database: Path) -> None:
                 """INSERT INTO autonomous_missions
                    (id,identity,mission_key,project_id,name,mission_owner,phase,
                     disposition,configuration_json,configuration_digest)
-                   VALUES(1,'mission-1',?,1,'Кіт і монети','miha','DEVELOPMENT',
+                   VALUES(1,'mission-1',?,1,'Кіт і монети','Founder','DEVELOPMENT',
                           'RUNNING','{}',?)""",
                 (MISSION, "c" * 64))
             db.execute(
@@ -179,9 +179,11 @@ class StudioPageTests(unittest.TestCase):
         sent = []
         page.route("**/api/studio/local-readiness?*", lambda route: route.fulfill(
             json={"can_start": True, "summary": "Qualified test source"}))
+
         def create(route):
             sent.append(json.loads(route.request.post_data))
             route.fulfill(status=202, json={"mission_key": MISSION, "mission_id": 1})
+
         page.route("**/api/studio/create?*", create)
         try:
             page.goto(self.url + "/studio?lang=en")
@@ -229,6 +231,7 @@ class StudioPageTests(unittest.TestCase):
             self.assertIn("0.80 USD", money)
             self.assertIn("0.30 USD", money)
             self.assertIn("No forecast", page.inner_text("#forecast"))
+            page.click(".by-role > summary")
             self.assertIn("developer", page.inner_text("#by-role"))
         finally:
             page.close()
@@ -256,12 +259,12 @@ class StudioPageTests(unittest.TestCase):
         try:
             # Granting changes state, so it gets a game of its own rather than
             # disturbing the seeded one every other test reads.
-            page.fill("#mission", "keys-of-its-own")
-            page.dispatch_event("#mission", "change")
+            page.goto(f"{self.url}/studio?lang=en&game=keys-of-its-own", wait_until="networkidle")
+            page.wait_for_timeout(300)
             page.wait_for_selector("#plan-empty:visible")
             page.click("#run-grant")
             self.assertIn("Enter a name", page.inner_text("#run-result"))
-            page.fill("#run-actor", "Miha")
+            page.fill("#actor", "Miha")
             page.click("#run-grant")
             # The first click with a name explains what the studio will then do.
             self.assertIn("permits planning in your name",
@@ -298,15 +301,15 @@ class StudioPageTests(unittest.TestCase):
         try:
             page.goto(f"{self.url}/studio?lang=en", wait_until="networkidle")
             page.wait_for_selector("#cycle-state:not(:empty)")
-            page.fill("#mission", "loop-demo")
-            page.dispatch_event("#mission", "change")
+            page.goto(f"{self.url}/studio?lang=en&game=loop-demo", wait_until="networkidle")
+            page.wait_for_timeout(300)
             page.wait_for_timeout(400)
             page.fill("#actor", "miha")
             page.click("#pause")
-            expect(page.locator("#cycle-state")).to_contain_text("Paused")
+            page.wait_for_timeout(400)
             self.assertIn("Paused", page.inner_text("#cycle-state"))
             page.click("#resume")
-            expect(page.locator("#cycle-state")).to_contain_text("Running")
+            page.wait_for_timeout(400)
             self.assertIn("Running", page.inner_text("#cycle-state"))
             self.assertIn("Cycle 2", page.inner_text("#cycle-state"))
         finally:
@@ -315,6 +318,7 @@ class StudioPageTests(unittest.TestCase):
     def test_the_machines_are_named_and_the_container_is_marked(self):
         page = self.open("/studio?lang=en")
         try:
+            page.click(".machines-card > summary")
             machines = page.inner_text("#machines")
             self.assertIn("your PC: desktop-tefqhlo", machines)
             self.assertIn("games are not built here", machines)
@@ -327,8 +331,8 @@ class StudioPageTests(unittest.TestCase):
         try:
             page.goto(f"{self.url}/studio?lang=en", wait_until="networkidle")
             page.wait_for_selector("#team li")
-            page.fill("#mission", "roster-demo")
-            page.dispatch_event("#mission", "change")
+            page.goto(f"{self.url}/studio?lang=en&game=roster-demo", wait_until="networkidle")
+            page.wait_for_timeout(300)
             # The switch is done when the empty plan of the new game is showing;
             # clicking before that would be clicking on the old game's list.
             page.wait_for_selector("#plan-empty:not([hidden])")
@@ -336,9 +340,9 @@ class StudioPageTests(unittest.TestCase):
 
             artist = page.locator("#team li", has_text="Artist")
             artist.get_by_role("button", name="Turn on").click()
-            artist.locator(".note").wait_for()
-            expect(artist.locator(".note")).to_contain_text("unknown")
-            note = artist.locator(".note").inner_text()
+            artist.locator(".offer").wait_for()
+            page.wait_for_timeout(200)
+            note = artist.locator(".offer").inner_text()
             self.assertIn("unknown", note)
             self.assertIn("one subscription is enough", note)
             self.assertIn(
@@ -346,7 +350,7 @@ class StudioPageTests(unittest.TestCase):
                 "showing the consequence must not enable the role")
 
             artist.get_by_role("button", name="Turn it on anyway").click()
-            expect(page.locator("#team li", has_text="Artist")).not_to_contain_text("Off")
+            page.wait_for_timeout(600)
             self.assertNotIn(
                 "Off", page.locator("#team li", has_text="Artist").inner_text())
         finally:
@@ -357,12 +361,12 @@ class StudioPageTests(unittest.TestCase):
         try:
             page.goto(f"{self.url}/studio?lang=en", wait_until="networkidle")
             page.wait_for_selector("#team li")
-            page.fill("#mission", "roster-unnamed")
-            page.dispatch_event("#mission", "change")
+            page.goto(f"{self.url}/studio?lang=en&game=roster-unnamed", wait_until="networkidle")
+            page.wait_for_timeout(300)
             page.wait_for_selector("#plan-empty:not([hidden])")
             sound = page.locator("#team li", has_text="Sound designer")
             sound.get_by_role("button", name="Turn on").click()
-            sound.locator(".note").wait_for()
+            sound.locator(".offer").wait_for()
             sound.get_by_role("button", name="Turn it on anyway").click()
             page.wait_for_timeout(400)
             self.assertIn("Enter a name", page.inner_text("#loop-result"))

@@ -4,25 +4,28 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Налаштування · Lokvetia Core</title>
-  <link rel="stylesheet" href="/assets/settings.css">
+  <link rel="stylesheet" href="/assets/app.css"><link rel="stylesheet" href="/assets/settings.css">
   <script src="/assets/settings.js" defer></script>
 <meta name="theme-color" content="#102C35"><meta name="description" content="Lokvetia Core — local AI agent orchestration with human control."><link rel="icon" href="/assets/brand-mark.svg" type="image/svg+xml"><link rel="stylesheet" href="/assets/brand.css"></head>
-<body class="brand-core page-settings">
-  <a class="skip" href="#main" data-i18n="nav.skip">До вмісту</a>
-  <header>
-    <a class="brand" href="/" aria-label="Lokvetia Core"><img class="brand-symbol" src="/assets/brand-mark.svg" alt="" width="40" height="40"><span class="brand-name">Lokvetia Core</span></a>
-    <nav data-i18n-attr="aria-label:nav.aria" aria-label="Навігація"><a href="/" data-i18n="nav.games">Мої ігри</a><a href="/studio" data-i18n="studio.title">Студія</a><a href="/work" data-i18n="nav.progress">Хід роботи</a><a href="/hardware" data-i18n="nav.hardware">Перевірити ПК</a><a href="/settings/credentials" data-i18n="nav.credentials">Доступ до AI</a><a href="/operations" data-i18n="nav.operations">Панель оператора</a><a href="/login" data-i18n="nav.login">Доступ і вихід</a></nav>
+<body class="app page-settings">
+  <a id="skip" class="skip" href="#main" data-i18n="nav.skip">До вмісту</a>
+  <header class="app-header">
+    <a class="app-brand" href="/" aria-label="Lokvetia Core"><img src="/assets/brand-mark.svg" alt="" width="32" height="32">Lokvetia&nbsp;Core</a>
+    <nav class="app-nav" data-i18n-attr="aria-label:nav.aria" aria-label="Навігація">
+      <a href="/" data-i18n="nav.games">Мої ігри</a>
+      <a href="/settings" data-i18n="nav.settings">Налаштування</a>
+    </nav>
+    <nav class="app-lang" data-i18n-attr="aria-label:language.label" aria-label="Мова">
+      <a href="?lang=uk" data-lang="uk" hreflang="uk">ук</a>
+      <a href="?lang=en" data-lang="en" hreflang="en">en</a>
+    </nav>
   </header>
-  <main id="main">
+  <main class="app-main" id="main">
     <section class="intro" aria-labelledby="title">
       <p class="eyebrow" data-i18n="settings.eyebrow">Робочий простір</p>
       <h1 id="title" data-i18n="settings.title">Налаштування</h1>
       <p class="lead" data-i18n="settings.lead">Усе, що впливає на роботу, зібране тут.</p>
       <p id="summary" role="status" aria-live="polite" data-i18n="common.loading">Завантаження…</p>
-      <nav class="languages" data-i18n-attr="aria-label:language.label" aria-label="Мова">
-        <a href="?lang=uk" data-lang="uk" data-i18n="language.uk">Українська</a>
-        <a href="?lang=en" data-lang="en" data-i18n="language.en">Англійська</a>
-      </nav>
     </section>
 
     <form class="who" id="who-form" autocomplete="off">
@@ -46,8 +49,18 @@
       <p id="history-empty" data-i18n="settings.history.empty">Змін ще не було.</p>
     </section>
 
-    <footer class="brand-footer"><span data-i18n="app.workspace">Lokvetia Core · Локальний робочий простір</span><a href="http://lokvetia.com/" target="_blank" rel="noopener noreferrer">lokvetia.com <span aria-hidden="true">↗</span></a></footer>
   </main>
+  <footer class="app-foot">
+    <span data-i18n="app.workspace">Lokvetia Core · Локальний робочий простір</span>
+    <span class="row">
+      <a href="/settings/credentials" data-i18n="nav.credentials">Доступ до AI</a>
+      <a href="/hardware" data-i18n="nav.hardware">Перевірити ПК</a>
+      <a href="/work" data-i18n="nav.progress">Хід роботи</a>
+      <a href="/operations" data-i18n="nav.operations">Панель оператора</a>
+      <a href="/login" data-i18n="nav.login">Доступ і вихід</a>
+      <a href="http://lokvetia.com/" target="_blank" rel="noopener noreferrer">lokvetia.com <span aria-hidden="true">↗</span></a>
+    </span>
+  </footer>
 
   <dialog id="confirm" aria-labelledby="confirm-title">
     <form method="dialog">
