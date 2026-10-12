@@ -27,6 +27,7 @@ dependencies = ["temporalio==1.31.0"]
 [project.scripts]
 lokvetia = "agent_factory.cli:main"
 lokvetia-temporal-worker = "agent_factory.orchestration.temporal.worker:main"
+lokvetia-prototype = "agent_factory.godot_prototype:main"
 agent-factory = "agent_factory.cli:main"
 agent-factory-temporal-worker = "agent_factory.orchestration.temporal.worker:main"
 
@@ -50,4 +51,4 @@ where = ["src"]
 include = ["agent_factory*"]
 
 [tool.setuptools.package-data]
-agent_factory = ["defaults/*.json", "defaults/*.yaml", "static/*"]
+agent_factory = ["defaults/*.json", "defaults/*.yaml", "defaults/godot/*.gd", "static/*"]

@@ -1,0 +1,141 @@
+{
+  "scope": "text-to-platformer-exe-and-double-jump-revision",
+  "general_studio_executor_complete": false,
+  "manual_playtest": false,
+  "automated_rendered_exe_acceptance": true,
+  "versions": [
+    {
+      "version": 1,
+      "request": "Створи просту 2D гру-платформер: гравець рухається стрілками, стрибає один раз, перестрибує платформами до зеленої цілі. Назва Sky Steps.",
+      "base_version_digest": null,
+      "version_digest": "1ffa0afb8843ba1d9da33dd71c9034d448c785ac202e0aaa584fbc266ed91396",
+      "source_commit": "2135450ea248c357529ea62d50f7f74695ec8c64",
+      "spec": {
+        "jump_velocity": 520,
+        "max_jumps": 1,
+        "speed": 260,
+        "title": "Sky Steps",
+        "unsupported": []
+      },
+      "exe_filename": "Sky-Steps-v1.exe",
+      "exe_sha256": "b97bcdb1395bc1403ff4dab480612e013b261f7dff23e0863c8ae3a9aa089fc1",
+      "exe_bytes": 109138216,
+      "engine_version": "4.7.2.stable.official.ed1daf0bf",
+      "recorded_at": "2026-09-13T13:43:14+00:00",
+      "model": "qwen2.5-coder:7b",
+      "model_digest": "dae161e27b0e90dd1856c8bb3209201fd6736d8eb66298e75ed87571486f4364",
+      "model_output_tokens": 44,
+      "runtime": {
+        "checks": {
+          "fall_loses": true,
+          "floor_collision": true,
+          "goal_collision_wins": true,
+          "ground_jump": true,
+          "horizontal_input": true,
+          "jump_rearmed_on_landing": true,
+          "lands_again": true,
+          "left_input": true,
+          "level_completed_with_input": true,
+          "no_extra_jump": true,
+          "rendered_frame": true,
+          "requested_air_jump_behavior": true,
+          "restart_after_loss": true,
+          "restart_after_win": true
+        },
+        "display": "Windows",
+        "expected_jumps": 1,
+        "measurements": {
+          "air_jump_velocity_after": -307.666534423828,
+          "air_jump_velocity_before": -340.333221435547,
+          "first_platform_position": [
+            304.0,
+            453.925262451172
+          ],
+          "goal_position": [
+            906.331970214844,
+            233.925277709961
+          ],
+          "second_platform_position": [
+            620.333312988281,
+            343.92529296875
+          ]
+        },
+        "passed": true
+      },
+      "evidence_gap": [
+        "graphical_playtest"
+      ]
+    },
+    {
+      "version": 2,
+      "request": "Додай подвійний стрибок.",
+      "base_version_digest": "1ffa0afb8843ba1d9da33dd71c9034d448c785ac202e0aaa584fbc266ed91396",
+      "version_digest": "7a45e2305a3cebc961111d1814997837e1097e0cec401e69459c0bdc663aef6b",
+      "source_commit": "4e9cd087d855aad85f9ef53e035f61a55a21aa33",
+      "spec": {
+        "jump_velocity": 520,
+        "max_jumps": 2,
+        "speed": 260,
+        "title": "Sky Steps",
+        "unsupported": []
+      },
+      "exe_filename": "Sky-Steps-v2.exe",
+      "exe_sha256": "e1e14d247eb8a19d8a320c2c916ed0554a74ad14ba5b7430d2f92cd2b0a47581",
+      "exe_bytes": 109138200,
+      "engine_version": "4.7.2.stable.official.ed1daf0bf",
+      "recorded_at": "2026-09-13T13:46:19+00:00",
+      "model": "qwen2.5-coder:7b",
+      "model_digest": "dae161e27b0e90dd1856c8bb3209201fd6736d8eb66298e75ed87571486f4364",
+      "model_output_tokens": 44,
+      "runtime": {
+        "checks": {
+          "fall_loses": true,
+          "floor_collision": true,
+          "goal_collision_wins": true,
+          "ground_jump": true,
+          "horizontal_input": true,
+          "jump_rearmed_on_landing": true,
+          "lands_again": true,
+          "left_input": true,
+          "level_completed_with_input": true,
+          "no_extra_jump": true,
+          "rendered_frame": true,
+          "requested_air_jump_behavior": true,
+          "restart_after_loss": true,
+          "restart_after_win": true
+        },
+        "display": "Windows",
+        "expected_jumps": 2,
+        "measurements": {
+          "air_jump_velocity_after": -503.666656494141,
+          "air_jump_velocity_before": -340.333221435547,
+          "first_platform_position": [
+            304.0,
+            453.925262451172
+          ],
+          "goal_position": [
+            906.331970214844,
+            233.925277709961
+          ],
+          "second_platform_position": [
+            620.333312988281,
+            343.92529296875
+          ]
+        },
+        "passed": true
+      },
+      "evidence_gap": [
+        "graphical_playtest"
+      ]
+    }
+  ],
+  "negative_control": {
+    "exe_version": 1,
+    "expected_jumps": 2,
+    "exit_code": 1,
+    "passed": false,
+    "failed_checks": [
+      "requested_air_jump_behavior"
+    ]
+  }
+}
