@@ -9,7 +9,12 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Mapping, Sequence
 
-from .sandbox import SandboxManager, SandboxPolicy
+from .sandbox import (
+    SandboxManager,
+    SandboxPolicy,
+    SandboxUnavailableError,
+    _canonical_command,
+)
 from .storage import SQLiteStorage, _sha256_snapshot
 
 
@@ -138,9 +143,23 @@ class ValidatorRunner:
                 max_seconds=max_seconds, max_output_chars=max_output_chars,
             )
             command = pack.commands[category]
-            result = self.sandbox.execute(
-                assignment_id, fencing_token, policy, command
-            )
+            try:
+                result = self.sandbox.execute(
+                    assignment_id, fencing_token, policy, command
+                )
+            except SandboxUnavailableError as error:
+                # A boundary reject (backend unavailable, or this command resolves
+                # outside the configured tool roots) must not lose evidence for the
+                # remaining categories. Record the honest block and keep going, the
+                # same way a real command failure is recorded rather than raised.
+                recorded.append(self._record_blocked(
+                    task_id=task.id, assignment_id=assignment_id,
+                    attempt_id=attempt_id, worktree_id=worktree_id,
+                    candidate_digest=candidate_digest, pack=pack, category=category,
+                    command=command, policy=policy,
+                    criterion_mappings=normalized_mappings[category], reason=str(error),
+                ))
+                continue
             effective_status = "failed" if result.changed_files else result.status
             effective_stderr = result.stderr
             if result.changed_files:
@@ -198,4 +217,84 @@ class ValidatorRunner:
             candidate_digest,
             all(result.status == "succeeded" for result in recorded),
             tuple(recorded),
+        )
+
+    def _record_blocked(
+        self,
+        *,
+        task_id: int,
+        assignment_id: int,
+        attempt_id: int,
+        worktree_id: int,
+        candidate_digest: str,
+        pack: ValidatorPack,
+        category: str,
+        command: tuple[str, ...],
+        policy: SandboxPolicy,
+        criterion_mappings: tuple[str, ...],
+        reason: str,
+    ) -> ValidatorResult:
+        """Record a category the sandbox refused to run, never a fabricated pass.
+
+        The backend rejected this command before any process started (unavailable
+        boundary, or the command resolves outside the configured tool roots), so
+        there is no execution to report. The category is marked ``failed`` because
+        the validator produced no passing verdict; the stderr makes clear this was a
+        pre-execution block, not an observed tool failure.
+        """
+        command_json = json.dumps(list(command), separators=(",", ":"))
+        # Digest the command the way the sandbox does for an executed one, so a
+        # blocked row and a later executed row of the same command compare equal.
+        try:
+            canonical = list(_canonical_command(command))
+        except (ValueError, OSError):
+            canonical = list(command)
+        command_digest = hashlib.sha256(
+            json.dumps(canonical, separators=(",", ":"), ensure_ascii=False)
+            .encode("utf-8")
+        ).hexdigest()
+        stderr = f"sandbox blocked this category before execution: {reason}"
+        evidence_digest = hashlib.sha256(stderr.encode("utf-8")).hexdigest()
+        environment = {
+            "platform": platform.system().casefold(),
+            "python": platform.python_version(),
+            "backend": self.sandbox.backend.name,
+            "cwd_scope": "candidate_worktree",
+            "network": policy.network,
+            "max_seconds": policy.max_seconds,
+            "max_output_chars": policy.max_output_chars,
+        }
+        with self.storage.db:
+            cursor = self.storage.db.execute(
+                """INSERT INTO validator_results(
+                       identity,task_id,assignment_id,attempt_id,worktree_id,
+                       candidate_digest,pack_id,pack_digest,category,command_json,
+                       command_digest,status,exit_code,stdout,stderr,
+                       environment_json,criterion_mappings_json,
+                       evidence_directory,evidence_digest
+                   ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                (
+                    self.storage._identity("validator-result"), task_id,
+                    assignment_id, attempt_id, worktree_id, candidate_digest,
+                    pack.pack_id, pack.digest, category, command_json,
+                    command_digest, "failed", None, "", stderr,
+                    json.dumps(environment, sort_keys=True),
+                    json.dumps(list(criterion_mappings), separators=(",", ":")),
+                    "", evidence_digest,
+                ),
+            )
+            result_id = int(cursor.lastrowid)
+            self.storage._event(
+                "validator.blocked", "validator_result", result_id,
+                {
+                    "task_id": task_id, "attempt_id": attempt_id,
+                    "worktree_id": worktree_id, "candidate_digest": candidate_digest,
+                    "category": category, "command_digest": command_digest,
+                    "criterion_mappings": list(criterion_mappings),
+                    "reason": reason,
+                },
+            )
+        return ValidatorResult(
+            result_id, category, "failed", None, command_digest, evidence_digest,
+            criterion_mappings,
         )
