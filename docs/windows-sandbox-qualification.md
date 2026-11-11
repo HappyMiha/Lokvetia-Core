@@ -102,3 +102,12 @@ Windows builds other than the one above. Until those carry their own evidence th
 Windows profile stays **not-qualified**, and it stays unavailable unless an operator
 provisions `AGENT_FACTORY_SANDBOX_TOOL_ROOTS`. WSL2 and Windows Sandbox remain
 separate possible profiles; neither is a substitute for the Windows path.
+
+The validator runner (AF-052) no longer loses the whole suite when the boundary
+refuses a command. A pack command that resolves outside the configured tool roots,
+or a backend that is unavailable, is recorded per category as `failed` with no exit
+code, no evidence directory, a stderr that says the sandbox blocked it before
+execution, and a `validator.blocked` event; the other categories still run. This is
+covered by unit tests with a stand-in backend only. A real validator pack has not
+yet been run through `WindowsAppContainerBackend` with tool roots configured, so the
+validator route above remains unproven.

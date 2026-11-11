@@ -1,3 +1,4 @@
+import hashlib
 import json
 import sqlite3
 import sys
@@ -6,7 +7,13 @@ import unittest
 from pathlib import Path
 
 from agent_factory.models import WorkItem
-from agent_factory.sandbox import SandboxBackend, SandboxManager
+from agent_factory.sandbox import (
+    SandboxBackend,
+    SandboxManager,
+    SandboxUnavailableError,
+    UnavailableSandboxBackend,
+    _canonical_command,
+)
 from agent_factory.storage import SQLiteStorage
 from agent_factory.validators import (
     VALIDATOR_CATEGORIES,
@@ -28,6 +35,29 @@ class RecordingBackend(SandboxBackend):
     def wrap(self, policy, command, control_dir):
         del policy, control_dir
         self.commands.append(command)
+        return list(command)
+
+
+class ToolRootBlockedBackend(SandboxBackend):
+    """Mirrors WindowsAppContainerBackend rejecting a command outside tool roots."""
+
+    name = "appcontainer-test"
+
+    def __init__(self, blocked_categories):
+        self.blocked_categories = set(blocked_categories)
+        self.commands = []
+
+    def availability(self):
+        return True, "test backend"
+
+    def wrap(self, policy, command, control_dir):
+        del policy, control_dir
+        self.commands.append(command)
+        joined = " ".join(command)
+        if any(f"{category}:ok" in joined for category in self.blocked_categories):
+            raise SandboxUnavailableError(
+                "Sandbox command is outside every qualified tool root"
+            )
         return list(command)
 
 
@@ -179,6 +209,91 @@ class DeterministicValidatorRunnerTests(unittest.TestCase):
         self.assertEqual(lint["status"], "failed")
         self.assertEqual(lint["exit_code"], 2)
         self.assertLessEqual(len(lint["stdout"]) + len(lint["stderr"]), 100)
+
+    def test_tool_root_block_records_honest_evidence_for_every_category(self):
+        backend = ToolRootBlockedBackend({"lint", "security_scan"})
+        runner = ValidatorRunner(
+            self.storage, self.workspace,
+            SandboxManager(self.storage, self.workspace, backend=backend),
+        )
+        result = runner.run(
+            assignment_id=self.claim.assignment_id,
+            fencing_token=self.claim.fencing_token,
+            attempt_id=self.attempt_id,
+            worktree_id=self.worktree_id,
+            candidate_digest="e" * 64,
+            pack=self.pack(), criterion_mappings=self.mappings(),
+            max_seconds=5, max_output_chars=1000,
+        )
+        self.assertFalse(result.passed)
+        self.assertEqual(len(result.results), 5)
+        statuses = {entry.category: entry.status for entry in result.results}
+        self.assertEqual(statuses["lint"], "failed")
+        self.assertEqual(statuses["security_scan"], "failed")
+        self.assertEqual(statuses["test"], "succeeded")
+        self.assertEqual(statuses["type_check"], "succeeded")
+        self.assertEqual(statuses["build"], "succeeded")
+        rows = {
+            row["category"]: row
+            for row in self.storage.db.execute(
+                "SELECT * FROM validator_results WHERE candidate_digest=?", ("e" * 64,)
+            ).fetchall()
+        }
+        for category in ("lint", "security_scan"):
+            self.assertIsNone(rows[category]["exit_code"])
+            self.assertIn("outside every qualified tool root", rows[category]["stderr"])
+            self.assertIn("before execution", rows[category]["stderr"])
+            # Same digest the sandbox records for an executed command, so blocked
+            # and executed rows of one command stay comparable.
+            canonical = json.dumps(
+                list(_canonical_command(self.pack().commands[category])),
+                separators=(",", ":"), ensure_ascii=False,
+            )
+            self.assertEqual(
+                rows[category]["command_digest"],
+                hashlib.sha256(canonical.encode("utf-8")).hexdigest(),
+            )
+            self.assertEqual(len(rows[category]["evidence_digest"]), 64)
+            self.assertEqual(rows[category]["evidence_directory"], "")
+        for category in ("test", "type_check", "build"):
+            self.assertEqual(rows[category]["status"], "succeeded")
+            self.assertEqual(rows[category]["exit_code"], 0)
+        events = self.storage.db.execute(
+            "SELECT event_type FROM events WHERE event_type='validator.blocked'"
+        ).fetchall()
+        self.assertEqual(len(events), 2)
+
+    def test_unavailable_backend_records_every_category_instead_of_raising(self):
+        runner = ValidatorRunner(
+            self.storage, self.workspace,
+            SandboxManager(
+                self.storage, self.workspace,
+                backend=UnavailableSandboxBackend("tool roots are not configured"),
+            ),
+        )
+        result = runner.run(
+            assignment_id=self.claim.assignment_id,
+            fencing_token=self.claim.fencing_token,
+            attempt_id=self.attempt_id,
+            worktree_id=self.worktree_id,
+            candidate_digest="f" * 64,
+            pack=self.pack(), criterion_mappings=self.mappings(),
+            max_seconds=5, max_output_chars=1000,
+        )
+        self.assertFalse(result.passed)
+        self.assertEqual(
+            [entry.category for entry in result.results], list(VALIDATOR_CATEGORIES)
+        )
+        self.assertTrue(all(entry.status == "failed" for entry in result.results))
+        self.assertTrue(all(entry.exit_code is None for entry in result.results))
+        stderr = [
+            row["stderr"] for row in self.storage.db.execute(
+                "SELECT stderr FROM validator_results WHERE candidate_digest=?",
+                ("f" * 64,),
+            ).fetchall()
+        ]
+        self.assertEqual(len(stderr), len(VALIDATOR_CATEGORIES))
+        self.assertTrue(all("tool roots are not configured" in text for text in stderr))
 
     def test_mapping_outside_task_contract_fails_before_execution(self):
         mappings = self.mappings()
